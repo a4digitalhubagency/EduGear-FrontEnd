@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { GraduationCap, ShieldUser, UserRound } from "lucide-react";
 import { InfoCard } from "@/components/students/InfoCard";
+import { GuardianInformationCard } from "@/components/students/GuardianInformationCard";
 import { AttendanceSummaryCard } from "@/components/students/AttendanceSummaryCard";
 import { FinanceOverviewCard } from "@/components/students/FinanceOverviewCard";
 import { AcademicPerformanceCard } from "@/components/students/AcademicPerformanceCard";
@@ -12,9 +13,11 @@ import { STATUS_LABELS } from "@/components/students/StatusBadge";
 import type { StudentProfile } from "@/types/student";
 
 /**
- * "Student Profile - Overview (Desktop)" screen. Only the Overview tab is
- * designed in Stitch so far — the other 4 tabs render a simple "not
- * available yet" placeholder rather than invented content.
+ * "Student Profile - Overview (Desktop)" screen, plus the Guardians tab
+ * from "Student Profile - Guardian Information (Desktop)". Overview and
+ * Guardians are the only two tabs designed in Stitch so far — Academics,
+ * Attendance, Finance, and Results render a simple "not available yet"
+ * placeholder rather than invented content.
  */
 export function StudentProfileView({ student }: { student: StudentProfile }) {
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS[0]);
@@ -64,6 +67,10 @@ export function StudentProfileView({ student }: { student: StudentProfile }) {
           </div>
 
           <StudentRecentActivityCard activity={student.recentActivity} />
+        </div>
+      ) : activeTab === "Guardians" ? (
+        <div className="mt-4">
+          <GuardianInformationCard studentName={student.name} guardians={student.guardians} />
         </div>
       ) : (
         <div className="mt-8 rounded-xl border border-dashed border-slate-gray/20 bg-white p-10 text-center">

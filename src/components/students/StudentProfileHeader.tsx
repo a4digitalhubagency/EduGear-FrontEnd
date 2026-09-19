@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ChevronDown, GraduationCap, Hash, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getInitials } from "@/lib/utils";
@@ -11,7 +12,14 @@ const AVATAR_COLORS = [
   "bg-amber-100 text-amber-700",
 ];
 
-export const PROFILE_TABS = ["Overview", "Academics", "Attendance", "Finance", "Results"] as const;
+export const PROFILE_TABS = [
+  "Overview",
+  "Academics",
+  "Guardians",
+  "Attendance",
+  "Finance",
+  "Results",
+] as const;
 export type ProfileTab = (typeof PROFILE_TABS)[number];
 
 interface StudentProfileHeaderProps {
@@ -25,8 +33,8 @@ interface StudentProfileHeaderProps {
  * screen uses a real headshot, deliberately not carried over here), name +
  * status dot, "# studentId · className", More Actions / Edit Student
  * buttons, and the Overview/Academics/Attendance/Finance/Results tab strip.
- * "More Actions" and "Edit Student" are inert for now — no actions or edit
- * flow are wired up yet.
+ * "More Actions" is still inert for now — no bulk-action flow is wired up
+ * yet. "Edit Student" links through to the Edit Student screen.
  */
 export function StudentProfileHeader({ student, activeTab, onTabChange }: StudentProfileHeaderProps) {
   const avatarColor = AVATAR_COLORS[Number(student.id) % AVATAR_COLORS.length];
@@ -67,10 +75,12 @@ export function StudentProfileHeader({ student, activeTab, onTabChange }: Studen
             More Actions
             <ChevronDown className="h-4 w-4" />
           </Button>
-          <Button type="button" className="w-auto px-4 py-2.5">
-            <SquarePen className="h-4 w-4" />
-            Edit Student
-          </Button>
+          <Link href={`/students/${student.id}/edit`}>
+            <Button type="button" className="w-auto px-4 py-2.5">
+              <SquarePen className="h-4 w-4" />
+              Edit Student
+            </Button>
+          </Link>
         </div>
       </div>
 

@@ -15,6 +15,13 @@ export const BLOOD_GROUP_OPTIONS = [
   "O-",
 ] as const;
 export const ACADEMIC_SESSION_OPTIONS = ["2023/2024", "2024/2025"] as const;
+export const STATUS_SELECT_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "graduated", label: "Graduated" },
+  { value: "pending", label: "Pending" },
+  { value: "on_leave", label: "On Leave" },
+] as const;
 
 /**
  * "Add Student - Form (Desktop)" screen — "New Admission" form. Sections:
@@ -53,3 +60,39 @@ export const addStudentSchema = z.object({
 });
 
 export type AddStudentValues = z.infer<typeof addStudentSchema>;
+
+export const editStudentSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: z.string().min(1, "Select a gender"),
+  guardianName: z.string().min(1, "Guardian name is required"),
+  guardianRelationship: z.string().min(1, "Select a relationship"),
+  phone: z.string().min(1, "Phone number is required"),
+  guardianEmail: z.string().email("Enter a valid email address").or(z.literal("")),
+  status: z.enum(STATUS_SELECT_OPTIONS.map((option) => option.value) as [string, ...string[]]),
+  academicSession: z.string().min(1, "Academic session is required"),
+  term: z.string().min(1, "Select a term"),
+  className: z.string().min(1, "Class/Arm is required"),
+  bloodGroup: z.string(),
+  knownAllergies: z.string(),
+});
+
+export type EditStudentValues = z.infer<typeof editStudentSchema>;
+/**
+ * "Guardian Management - Interaction States" screen — the "Add Guardian"
+ * modal (reused, pre-filled, for "Edit Details" too — see
+ * GuardianFormModal.tsx). Only name/relationship/phone are required,
+ * matching the "*" fields in the design; occupation and address are
+ * optional there too.
+ */
+export const guardianFormSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  relationship: z.string().min(1, "Select a relationship"),
+  phone: z.string().min(1, "Phone number is required"),
+  email: z.string().email("Enter a valid email address").optional().or(z.literal("")),
+  occupation: z.string().optional(),
+  address: z.string().optional(),
+  isPrimary: z.boolean(),
+});
+
+export type GuardianFormValues = z.infer<typeof guardianFormSchema>;

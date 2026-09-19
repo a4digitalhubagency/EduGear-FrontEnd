@@ -40,6 +40,9 @@ export const NAV_ITEMS: NavItem[] = [
 export const SEARCH_PLACEHOLDERS: Record<string, string> = {
   "/dashboard": "Search student records, staff or financial data...",
   "/students": "Search students, parents, or staff...",
+  "/academics/attendance": "Search student name or ID...",
+  "/academics/promotion": "Search student name or ID...",
+    "/students/import": "Search students, parents, or staff...",
 };
-
 export const DEFAULT_SEARCH_PLACEHOLDER = "Search...";
+

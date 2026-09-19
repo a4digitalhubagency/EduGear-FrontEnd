@@ -40,6 +40,18 @@ export interface StudentActivityEntry {
   detail: string;
 }
 
+/** One guardian entry on the Student Profile's Guardians tab. A student can have more than one. */
+export interface Guardian {
+  id: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  occupation?: string;
+  isPrimary: boolean;
+}
+
 /**
  * Everything the Student Profile ("Overview" tab) screen needs, beyond the
  * fields already on Student. Extends Student rather than duplicating its
@@ -50,8 +62,13 @@ export interface StudentProfile extends Student {
   dateOfBirth: string;
   admissionDate: string;
   academicSession: string;
+  term: string; // e.g. "Second Term" — used by Edit Student, not shown on the Overview tab
   guardianRelationship: string;
   guardianEmail: string;
+  bloodGroup: string; // e.g. "O+" — used by Edit Student
+  knownAllergies: string; // e.g. "No known allergies" — used by Edit Student
+  /** Full guardian list for the Guardians tab. guardians[0] is generally the same person as guardianName/guardianRelationship/phone/guardianEmail above — those singular fields stay in place for the Overview tab and Edit Student, which predate multi-guardian support. */
+  guardians: Guardian[];
   attendance: StudentAttendanceSummary;
   finance: StudentFinanceSummary;
   academicPerformance: StudentAcademicPerformance;

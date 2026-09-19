@@ -122,10 +122,12 @@ export function StudentsListView() {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button type="button" variant="ghost" className="w-auto px-4 py-2.5">
-            <Upload className="h-4 w-4" />
-            Import Students
-          </Button>
+          <Link href="/students/import">
+            <Button type="button" variant="ghost" className="w-auto px-4 py-2.5">
+              <Upload className="h-4 w-4" />
+              Import Students
+            </Button>
+          </Link>
           <Link href="/students/new">
             <Button type="button" className="w-auto px-4 py-2.5">
               <Plus className="h-4 w-4" />
