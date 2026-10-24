@@ -29,9 +29,14 @@ async function forward(req: NextRequest, { params }: { params: Promise<{ path: s
     return backendUnreachable();
   }
 
+  const responseHeaders = new Headers({ "content-type": contentType || "application/json" });
+  // Downloads (the import template, files) name themselves through Content-Disposition.
+  const disposition = backendRes.headers.get("content-disposition");
+  if (disposition) responseHeaders.set("content-disposition", disposition);
+
   return new NextResponse(backendRes.status === 204 ? null : backendRes.body, {
     status: backendRes.status,
-    headers: { "content-type": backendRes.headers.get("content-type") ?? "application/json" },
+    headers: responseHeaders,
   });
 }
 

@@ -109,6 +109,23 @@ export async function apiBlob(path: string, options: ApiOptions = {}): Promise<B
 }
 
 /**
+ * Downloads a backend file to the user's computer, named by the server's
+ * Content-Disposition when it sends one (e.g. the student import template).
+ */
+export async function downloadFile(path: string, fallbackName: string) {
+  const response = await send(path, {}, false);
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  // Give the browser a moment to start the download before freeing the memory.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
  * Backend file URLs come back as "/api/files/:id" (relative to the backend), but the
  * browser must go through our proxy at /api/backend. Returns the path for api()/apiBlob(),
  * or null for anything that isn't a backend URL (e.g. an external photoUrl).
@@ -133,13 +150,32 @@ export function toQueryString(params: Record<string, string | number | boolean |
 }
 
 /**
+ * The backend refuses weak passwords as "Password is too weak" with reasons such as
+ * "must contain a number" in details[0].constraints. This makes them one sentence:
+ * "Password must contain a number and is too common…". Anything else: errorMessage().
+ */
+export function passwordErrorMessage(error: unknown) {
+  if (error instanceof ApiError && Array.isArray(error.details)) {
+    const first = error.details[0] as { field?: unknown; constraints?: unknown } | undefined;
+    if (first?.field === "password" && Array.isArray(first.constraints) && first.constraints.length > 0) {
+      return `Password ${first.constraints.join(" and ")}.`;
+    }
+  }
+  return errorMessage(error);
+}
+
+/**
  * A message fit to show the user. Validation failures say "Request validation failed"
  * and carry the real reasons (class-validator strings) in details, so show the first one.
  */
 export function errorMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (!(error instanceof ApiError)) return fallback;
-  if (error.errorCode === "VALIDATION_ERROR" && Array.isArray(error.details) && typeof error.details[0] === "string") {
-    return error.details[0];
+  if (error.errorCode === "VALIDATION_ERROR" && Array.isArray(error.details)) {
+    const first: unknown = error.details[0];
+    if (typeof first === "string") return first;
+    // Some services report { field, constraints: ["student is not an active member of JSS 1 B"] }.
+    const constraint = (first as { constraints?: unknown } | undefined)?.constraints;
+    if (Array.isArray(constraint) && typeof constraint[0] === "string") return constraint[0];
   }
   return error.message;
 }
