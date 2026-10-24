@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, Mail, X } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { ApiError, api, jsonBody } from "../../lib/api-client";
 import {
   forgotPasswordSchema,
   type ForgotPasswordValues,
@@ -36,28 +37,18 @@ export function ForgotPasswordForm() {
   async function onSubmit(values: ForgotPasswordValues) {
     setBannerError(null);
     try {
-      // TODO: wire up to the real EduGear auth endpoint (see docs/ARCHITECTURE.md §4.2).
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-
-      if (!res.ok && res.status >= 500) {
-        throw new Error(
-          "Unable to send reset link. Please try again or contact support.",
-        );
-      }
-
-      // Shown whether or not the email is actually registered — never confirm
-      // or deny account existence from this screen.
+      // Public endpoint (no session). The backend answers the same whether or not the
+      // email exists, so this screen never confirms or denies that an account exists.
+      await api("/auth/forgot-password", { ...jsonBody("POST", { email: values.email }), auth: false });
       setSubmittedEmail(values.email);
     } catch (err) {
-      setBannerError(
-        err instanceof Error
-          ? err.message
-          : "Unable to send reset link. Please try again or contact support.",
-      );
+      if (err instanceof ApiError && err.status === 429) {
+        setBannerError("Too many requests. Please wait a few minutes and try again.");
+      } else if (err instanceof ApiError && err.status === 502) {
+        setBannerError(err.message); // "Can't reach the server..."
+      } else {
+        setBannerError("Unable to send reset link. Please try again or contact support.");
+      }
     }
   }
 

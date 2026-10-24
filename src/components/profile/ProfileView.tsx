@@ -12,18 +12,19 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormError } from "@/components/ui/FormError";
 import { PasswordInput } from "@/components/ui/Input";
 import { LoadingText, PageHeader, Pill } from "@/components/ui/table";
-import { api, errorMessage, jsonBody } from "@/lib/api-client";
+import { api, errorMessage, jsonBody, passwordErrorMessage } from "@/lib/api-client";
+import { newPasswordSchema } from "@/lib/validation/auth";
 import { logout, logoutEverywhere, switchSchool } from "@/lib/auth-actions";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { AuthUser, MembershipSummary } from "@/lib/store/auth-store";
 
 type Profile = { user: AuthUser; activeSchool: MembershipSummary; memberships: MembershipSummary[]; permissions: string[] };
 
-/** ChangePasswordDto: new password 10-128 characters. */
+/** ChangePasswordDto, with the backend's password policy (10-128 characters, a letter and a number). */
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password"),
-    newPassword: z.string().min(10, "Use at least 10 characters").max(128, "Use at most 128 characters"),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords don't match" })
@@ -60,7 +61,7 @@ function ChangePasswordCard() {
       await logout();
       router.replace("/login");
     } catch (err) {
-      setServerError(errorMessage(err));
+      setServerError(passwordErrorMessage(err));
     }
   }
 
@@ -71,7 +72,8 @@ function ChangePasswordCard() {
         <PasswordInput label="New Password" autoComplete="new-password" error={errors.newPassword?.message} {...register("newPassword")} />
         <PasswordInput label="Confirm New Password" autoComplete="new-password" error={errors.confirmPassword?.message} {...register("confirmPassword")} />
         <p className="text-xs text-slate-gray">
-          At least 10 characters. Changing it signs you out on every device, including this one.
+          At least 10 characters, with a letter and a number. Changing it signs you out on every device, including
+          this one.
         </p>
         <FormError message={serverError} />
         <Button type="submit" className="w-auto px-6" isLoading={isSubmitting}>

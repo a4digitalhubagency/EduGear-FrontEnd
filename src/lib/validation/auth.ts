@@ -22,15 +22,28 @@ export const forgotPasswordSchema = z.object({
 
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
-/** Reset Password form schema — new password + confirmation, matching the Reset Password screen. */
+/**
+ * The backend password policy (PasswordService.assertMeetsPolicy): 10-128 characters,
+ * at least one letter and one number. It also refuses very common passwords, which only
+ * the server can check, so that one shows up as a server error instead.
+ */
+export const PASSWORD_REQUIREMENTS: { label: string; test: (value: string) => boolean }[] = [
+  { label: "At least 10 characters", test: (v) => v.length >= 10 },
+  { label: "At least one letter", test: (v) => /[a-zA-Z]/.test(v) },
+  { label: "At least one number", test: (v) => /\d/.test(v) },
+];
+
+export const newPasswordSchema = z
+  .string()
+  .min(10, "Use at least 10 characters")
+  .max(128, "Use at most 128 characters")
+  .regex(/[a-zA-Z]/, "Include at least one letter")
+  .regex(/\d/, "Include at least one number");
+
+/** Reset Password form schema: new password + confirmation, matching the Reset Password screen. */
 export const resetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Include at least one uppercase letter")
-      .regex(/[a-z]/, "Include at least one lowercase letter")
-      .regex(/[0-9]/, "Include at least one number"),
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((data) => data.password === data.confirmPassword, {

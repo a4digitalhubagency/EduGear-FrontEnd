@@ -7,8 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Check, CheckCircle2, ShieldAlert, X } from "lucide-react";
 import { PasswordInput } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { ApiError, api, jsonBody, passwordErrorMessage } from "../../lib/api-client";
 import { cn } from "../../lib/utils";
 import {
+  PASSWORD_REQUIREMENTS,
   resetPasswordSchema,
   type ResetPasswordValues,
 } from "../../lib/validation/auth";
@@ -20,12 +22,8 @@ interface ResetPasswordFormProps {
 
 type Stage = "form" | "expired" | "success";
 
-const REQUIREMENTS: { label: string; test: (value: string) => boolean }[] = [
-  { label: "At least 8 characters", test: (v) => v.length >= 8 },
-  { label: "One uppercase letter", test: (v) => /[A-Z]/.test(v) },
-  { label: "One lowercase letter", test: (v) => /[a-z]/.test(v) },
-  { label: "One number", test: (v) => /[0-9]/.test(v) },
-];
+// The checklist mirrors the backend's own policy, so a ticked list means the server agrees.
+const REQUIREMENTS = PASSWORD_REQUIREMENTS;
 
 /**
  * Reset Password form — covers "Default State", "Link Expired State", and
@@ -53,31 +51,16 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   async function onSubmit(values: ResetPasswordValues) {
     setBannerError(null);
     try {
-      // TODO: wire up to the real EduGear auth endpoint (see docs/ARCHITECTURE.md §4.3).
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password: values.password }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        if (res.status === 410 || body?.code === "TOKEN_EXPIRED") {
-          setStage("expired");
-          return;
-        }
-        throw new Error(
-          body?.message ?? "Unable to reset your password. Please try again.",
-        );
-      }
-
+      // Public endpoint: no session involved, and a 401 here means a bad link, not an expired login.
+      await api("/auth/reset-password", { ...jsonBody("POST", { token, password: values.password }), auth: false });
       setStage("success");
     } catch (err) {
-      setBannerError(
-        err instanceof Error
-          ? err.message
-          : "Unable to reset your password. Please try again.",
-      );
+      // "This link is invalid / has already been used / has expired" all mean: request a new one.
+      if (err instanceof ApiError && (err.errorCode === "TOKEN_INVALID" || err.errorCode === "TOKEN_EXPIRED")) {
+        setStage("expired");
+        return;
+      }
+      setBannerError(passwordErrorMessage(err));
     }
   }
 
@@ -92,7 +75,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           Link expired or invalid
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-gray">
-          For your security, password reset links expire after 24 hours or
+          For your security, password reset links expire after an hour and
           can only be used once. Please request a new link to continue.
         </p>
 
