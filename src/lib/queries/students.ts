@@ -4,6 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { api, jsonBody, toQueryString } from "@/lib/api-client";
 import { academicsKeys } from "@/lib/queries/academics";
 import type { Paginated } from "@/types/api";
+import type { ImportReport, ImportStudentsCsvInput } from "@/types/bulk-import";
+import type { PromoteStudentsInput, PromotionResult } from "@/types/promotion";
 import type {
   AdmitStudentInput,
   ChangeStudentStatusInput,
@@ -80,6 +82,42 @@ export function useUploadStudentPhoto() {
     form.append("file", file);
     return api<Student>(`/students/${id}/photo`, { method: "POST", body: form });
   });
+}
+
+/**
+ * Bulk import from CSV text. With dryRun it only validates; without, it writes (and
+ * refetches student lists and academics counts like any other student change).
+ */
+export function useImportStudents() {
+  return useStudentsMutation((input: ImportStudentsCsvInput) =>
+    api<ImportReport>("/students/import/csv", jsonBody("POST", input)),
+  );
+}
+
+/** Every ACTIVE student in one arm (up to the 500 a promotion can move), for a roster. */
+export function useArmRoster(classArmId: string | undefined) {
+  return useQuery({
+    queryKey: [...studentsKeys.all, "arm-roster", classArmId],
+    queryFn: async () => {
+      const rows: Student[] = [];
+      for (let page = 1; page <= 5; page++) {
+        const res = await api<Paginated<Student>>(
+          `/students${toQueryString({ classArmId, status: "ACTIVE", page, limit: 100, sortBy: "lastName", sortOrder: "asc" })}`,
+        );
+        rows.push(...res.data);
+        if (!res.meta.hasNextPage) break;
+      }
+      return rows;
+    },
+    enabled: !!classArmId,
+  });
+}
+
+/** Promote (or graduate) an arm or part of it; refetches students and academics counts. */
+export function usePromoteStudents() {
+  return useStudentsMutation((input: PromoteStudentsInput) =>
+    api<PromotionResult>("/students/promotions", jsonBody("POST", input)),
+  );
 }
 
 export function useRemoveStudentPhoto() {

@@ -1,16 +1,16 @@
-import { AlertCircle, CheckCircle2, Copy, type LucideIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleCheckBig, type LucideIcon } from "lucide-react";
 import type { ImportRowStatus } from "@/types/bulk-import";
 
 const STATUS_CONFIG: Record<ImportRowStatus, { label: string; className: string; icon: LucideIcon }> = {
-  valid: { label: "Valid", className: "text-green-700", icon: CheckCircle2 },
-  duplicate: { label: "Duplicate", className: "text-amber-600", icon: Copy },
-  "missing-field": { label: "Missing Field", className: "text-red-600", icon: AlertCircle },
+  VALID: { label: "Ready", className: "text-green-700", icon: CheckCircle2 },
+  IMPORTED: { label: "Imported", className: "text-bright-blue", icon: CircleCheckBig },
+  FAILED: { label: "Needs Fixing", className: "text-red-600", icon: AlertCircle },
 };
 
 /**
- * Inline icon + text "Status" cell for the Bulk Import "Data Preview"
- * table — same plain text+icon treatment (not a pill) as
- * PromotionStatusBadge on the Student Promotion screen.
+ * Inline icon + text "Status" cell for the Bulk Import preview table, same plain
+ * text+icon treatment (not a pill) as the design shows. Statuses are the backend's:
+ * Ready (passed validation), Imported (written), Needs Fixing (failed with reasons).
  */
 export function ImportRowStatusBadge({ status }: { status: ImportRowStatus }) {
   const { label, className, icon: Icon } = STATUS_CONFIG[status];
