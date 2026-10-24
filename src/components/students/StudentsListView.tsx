@@ -1,111 +1,90 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Download, Plus, Search, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, Plus, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { StatusBadge } from "@/components/students/StatusBadge";
-import { getInitials } from "@/lib/utils";
-import type { Student } from "@/types/student";
+import { StudentAvatar } from "@/components/students/StudentAvatar";
+import { StudentStatusBadge } from "@/components/students/StatusBadge";
+import { errorMessage } from "@/lib/api-client";
+import { useDebouncedValue } from "@/lib/hooks";
+import { useClassArms, useClasses } from "@/lib/queries/academics";
+import { useStudents } from "@/lib/queries/students";
+import { useCan } from "@/lib/store/auth-store";
+import { GENDER_LABELS, STUDENT_STATUS_LABELS } from "@/lib/student-labels";
+import { cn, formatDate } from "@/lib/utils";
+import { GENDERS, STUDENT_STATUSES, type Gender, type StudentStatus, type StudentsQuery } from "@/types/students";
+
+const PAGE_SIZE = 20;
+const COLUMNS = 8;
 
 /**
- * Mock roster — the 4 example rows shown in the "Students - List View
- * (Desktop)" Stitch screen. Email domain (@albarka.edu.ng) is inferred —
- * the screenshot's email text wasn't fully legible at the zoom level sent.
- * Real data (the design's own pagination footer says 1,248 students) arrives
- * once the backend is wired up — see the "wire everything at the end"
- * workflow decision in docs/ARCHITECTURE.md.
+ * The class filter is one dropdown, as in the design ("SS 2A"), but it can mean a
+ * whole class, one arm, or no arm at all, so the value carries its kind:
+ * "" (all), "class:<id>", "arm:<id>" or "unassigned".
  */
-const MOCK_STUDENTS: Student[] = [
-  {
-    id: "1",
-    studentId: "EDU-00124",
-    name: "Aisha Bello",
-    email: "aisha.b@albarka.edu.ng",
-    className: "SS 2A",
-    gender: "Female",
-    guardianName: "Musa Bello",
-    phone: "+234 802 344 5566",
-    status: "active",
-  },
-  {
-    id: "2",
-    studentId: "EDU-00125",
-    name: "Chidi Okoro",
-    email: "chidi.o@albarka.edu.ng",
-    className: "SS 2B",
-    gender: "Male",
-    guardianName: "Ngozi Okoro",
-    phone: "+234 703 111 2233",
-    status: "active",
-  },
-  {
-    id: "3",
-    studentId: "EDU-00126",
-    name: "Fatima Yusuf",
-    email: "fatima.y@albarka.edu.ng",
-    className: "JSS 3C",
-    gender: "Female",
-    guardianName: "Ibrahim Yusuf",
-    phone: "+234 901 222 3344",
-    status: "inactive",
-  },
-  {
-    id: "4",
-    studentId: "EDU-00127",
-    name: "Tunde Adeyemi",
-    email: "tunde.a@albarka.edu.ng",
-    className: "SS 3A",
-    gender: "Male",
-    guardianName: "Bayo Adeyemi",
-    phone: "+234 815 444 5555",
-    status: "graduated",
-  },
-];
+function placementQuery(value: string): Pick<StudentsQuery, "classId" | "classArmId" | "unassigned"> {
+  if (value.startsWith("class:")) return { classId: value.slice("class:".length) };
+  if (value.startsWith("arm:")) return { classArmId: value.slice("arm:".length) };
+  if (value === "unassigned") return { unassigned: true };
+  return {};
+}
 
-const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-700",
-  "bg-green-100 text-green-700",
-  "bg-pink-100 text-pink-700",
-  "bg-amber-100 text-amber-700",
-];
-
-const CLASS_OPTIONS = ["All Classes", "SS 3A", "SS 2A", "SS 2B", "JSS 3C"];
-const STATUS_OPTIONS = ["All Status", "Active", "Inactive", "Graduated", "Pending", "On Leave"];
-const GENDER_OPTIONS = ["Gender", "Male", "Female"];
-const SESSION_OPTIONS = ["2023/2024 Session", "2024/2025 Session"];
+/** Up to five page numbers centred on the current page. */
+function pageWindow(page: number, totalPages: number) {
+  const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+  return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
+}
 
 /**
- * "Students - List View (Desktop)" screen. Search/filter row and table are
- * wired to the mock roster above (client-side only — no API calls yet, per
- * the "wire everything at the end" decision). Loading/Empty/Error states
- * from the "Students - Operational States" reference screen, plus the
- * Add/Edit Student forms, are separate screens — see docs/ARCHITECTURE.md
- * §3.4. Each row links to /students/:id (the Student Profile screen).
+ * "Students - List View (Desktop)" screen, on the real API: search, filters and
+ * pagination all happen server-side (GET /students). Differences from the design,
+ * agreed with the frontend lead:
+ * - Guardian and Phone columns became Admission Date and the student's own phone,
+ *   because the list endpoint carries no guardian data (it's on the profile).
+ * - The Session filter is gone: students aren't tied to a session in the backend.
+ * - Statuses are the backend's five (no Pending / On Leave).
+ * "Export" stays an inert affordance until there's an export endpoint.
  */
 export function StudentsListView() {
-  const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState(CLASS_OPTIONS[0]);
-  const [statusFilter, setStatusFilter] = useState(STATUS_OPTIONS[0]);
-  const [genderFilter, setGenderFilter] = useState(GENDER_OPTIONS[0]);
+  const canCreate = useCan("students.create");
+  const classes = useClasses();
+  const arms = useClassArms();
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return MOCK_STUDENTS.filter((student) => {
-      const matchesSearch =
-        query === "" ||
-        student.name.toLowerCase().includes(query) ||
-        student.studentId.toLowerCase().includes(query);
-      const matchesClass = classFilter === CLASS_OPTIONS[0] || student.className === classFilter;
-      const matchesStatus =
-        statusFilter === STATUS_OPTIONS[0] ||
-        student.status === statusFilter.toLowerCase().replace(" ", "_");
-      const matchesGender = genderFilter === GENDER_OPTIONS[0] || student.gender === genderFilter;
-      return matchesSearch && matchesClass && matchesStatus && matchesGender;
-    });
-  }, [search, classFilter, statusFilter, genderFilter]);
+  const [search, setSearch] = useState("");
+  const [placement, setPlacement] = useState("");
+  // Defaults to Active, the backend's own default: graduated/withdrawn students rarely belong in the day-to-day list.
+  const [status, setStatus] = useState<StudentStatus | "ALL">("ACTIVE");
+  const [gender, setGender] = useState<Gender | "">("");
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search);
+
+  const students = useStudents({
+    page,
+    limit: PAGE_SIZE,
+    search: debouncedSearch.trim() || undefined,
+    status,
+    gender: gender || undefined,
+    ...placementQuery(placement),
+    sortBy: "lastName",
+    sortOrder: "asc", // the backend defaults to desc, which reads backwards for names
+  });
+
+  // Every filter change starts again from page 1, or you could land past the last page.
+  function changeFilter<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  const rows = students.data?.data ?? [];
+  const meta = students.data?.meta;
+  const armList = arms.data?.data ?? [];
+  const firstShown = meta && meta.total > 0 ? (meta.page - 1) * meta.limit + 1 : 0;
+  const lastShown = meta ? Math.min(meta.page * meta.limit, meta.total) : 0;
 
   return (
     <div>
@@ -122,18 +101,22 @@ export function StudentsListView() {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Link href="/students/import">
-            <Button type="button" variant="ghost" className="w-auto px-4 py-2.5">
-              <Upload className="h-4 w-4" />
-              Import Students
-            </Button>
-          </Link>
-          <Link href="/students/new">
-            <Button type="button" className="w-auto px-4 py-2.5">
-              <Plus className="h-4 w-4" />
-              Add Student
-            </Button>
-          </Link>
+          {canCreate && (
+            <>
+              <Link href="/students/import">
+                <Button type="button" variant="ghost" className="w-auto px-4 py-2.5">
+                  <Upload className="h-4 w-4" />
+                  Import Students
+                </Button>
+              </Link>
+              <Link href="/students/new">
+                <Button type="button" className="w-auto px-4 py-2.5">
+                  <Plus className="h-4 w-4" />
+                  Add Student
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -141,36 +124,63 @@ export function StudentsListView() {
         <div className="min-w-[240px] flex-1">
           <Input
             icon={Search}
-            placeholder="Search by name, student ID, admission..."
+            placeholder="Search by name or admission number..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeFilter(setSearch)(e.target.value)}
             className="py-2.5"
+            aria-label="Search students"
           />
         </div>
-        <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
-          {CLASS_OPTIONS.map((option) => (
-            <option key={option}>{option}</option>
+        <Select value={placement} onChange={(e) => changeFilter(setPlacement)(e.target.value)} aria-label="Filter by class">
+          <option value="">All Classes</option>
+          {(classes.data?.data ?? []).map((schoolClass) => (
+            <optgroup key={schoolClass.id} label={schoolClass.name}>
+              <option value={`class:${schoolClass.id}`}>All {schoolClass.name}</option>
+              {armList
+                .filter((arm) => arm.classId === schoolClass.id)
+                .map((arm) => (
+                  <option key={arm.id} value={`arm:${arm.id}`}>
+                    {arm.fullName}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+          <option value="unassigned">No class assigned</option>
+        </Select>
+        <Select
+          value={status}
+          onChange={(e) => changeFilter(setStatus)(e.target.value as StudentStatus | "ALL")}
+          aria-label="Filter by status"
+        >
+          <option value="ALL">All Status</option>
+          {STUDENT_STATUSES.map((value) => (
+            <option key={value} value={value}>
+              {STUDENT_STATUS_LABELS[value]}
+            </option>
           ))}
         </Select>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </Select>
-        <Select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
-          {GENDER_OPTIONS.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </Select>
-        <Select defaultValue={SESSION_OPTIONS[0]}>
-          {SESSION_OPTIONS.map((option) => (
-            <option key={option}>{option}</option>
+        <Select
+          value={gender}
+          onChange={(e) => changeFilter(setGender)(e.target.value as Gender | "")}
+          aria-label="Filter by gender"
+        >
+          <option value="">Gender</option>
+          {GENDERS.map((value) => (
+            <option key={value} value={value}>
+              {GENDER_LABELS[value]}
+            </option>
           ))}
         </Select>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-gray/10 bg-white">
-        <table className="w-full min-w-[860px] text-left text-sm">
+        <table
+          className={cn(
+            "w-full min-w-[860px] text-left text-sm transition-opacity",
+            // The previous page stays on screen while the next one loads; dim it so that's visible.
+            students.isPlaceholderData && "opacity-60",
+          )}
+        >
           <thead>
             <tr className="border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray">
               <th className="w-10 px-4 py-3">
@@ -184,20 +194,42 @@ export function StudentsListView() {
               <th className="px-4 py-3">Student ID</th>
               <th className="px-4 py-3">Class</th>
               <th className="px-4 py-3">Gender</th>
-              <th className="px-4 py-3">Guardian</th>
+              <th className="px-4 py-3">Admission Date</th>
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {students.isPending ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-gray">
+                <td colSpan={COLUMNS} className="px-4 py-10 text-center text-sm text-slate-gray">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading students...
+                  </span>
+                </td>
+              </tr>
+            ) : students.isError ? (
+              <tr>
+                <td colSpan={COLUMNS} className="px-4 py-10 text-center text-sm text-slate-gray">
+                  {errorMessage(students.error)}
+                  <button
+                    type="button"
+                    onClick={() => students.refetch()}
+                    className="ml-1 font-semibold text-bright-blue hover:underline"
+                  >
+                    Try again
+                  </button>
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={COLUMNS} className="px-4 py-10 text-center text-sm text-slate-gray">
                   No students match your filters.
                 </td>
               </tr>
             ) : (
-              filtered.map((student, index) => (
+              rows.map((student) => (
                 <tr
                   key={student.id}
                   className="border-b border-slate-gray/10 last:border-0 hover:bg-cloud-sky/20"
@@ -205,30 +237,30 @@ export function StudentsListView() {
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
-                      aria-label={`Select ${student.name}`}
+                      aria-label={`Select ${student.fullName}`}
                       className="h-4 w-4 rounded border-slate-gray/40"
                     />
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/students/${student.id}`} className="flex items-center gap-3">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${AVATAR_COLORS[index % AVATAR_COLORS.length]}`}
-                      >
-                        {getInitials(student.name)}
-                      </div>
+                      <StudentAvatar
+                        id={student.id}
+                        name={`${student.firstName} ${student.lastName}`}
+                        photoUrl={student.photoUrl}
+                      />
                       <div>
-                        <p className="font-semibold text-primary-navy hover:underline">{student.name}</p>
-                        <p className="text-xs text-slate-gray">{student.email}</p>
+                        <p className="font-semibold text-primary-navy hover:underline">{student.fullName}</p>
+                        {student.email && <p className="text-xs text-slate-gray">{student.email}</p>}
                       </div>
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-gray">{student.studentId}</td>
-                  <td className="px-4 py-3 text-slate-gray">{student.className}</td>
-                  <td className="px-4 py-3 text-slate-gray">{student.gender}</td>
-                  <td className="px-4 py-3 text-slate-gray">{student.guardianName}</td>
-                  <td className="px-4 py-3 text-slate-gray">{student.phone}</td>
+                  <td className="px-4 py-3 text-slate-gray">{student.className ?? "Unassigned"}</td>
+                  <td className="px-4 py-3 text-slate-gray">{GENDER_LABELS[student.gender]}</td>
+                  <td className="px-4 py-3 text-slate-gray">{formatDate(student.admissionDate)}</td>
+                  <td className="px-4 py-3 text-slate-gray">{student.phone ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={student.status} />
+                    <StudentStatusBadge status={student.status} />
                   </td>
                 </tr>
               ))
@@ -238,34 +270,45 @@ export function StudentsListView() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-gray/10 px-4 py-3 text-sm text-slate-gray">
           <p>
-            {filtered.length === 0
-              ? "Showing 0 of 0 students"
-              : `Showing 1–${filtered.length} of ${filtered.length} students`}
+            {meta ? `Showing ${firstShown}–${lastShown} of ${meta.total.toLocaleString()} students` : " "}
           </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled
-              className="rounded-md px-2.5 py-1.5 text-slate-gray/40 disabled:cursor-not-allowed"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="rounded-md bg-primary-navy px-3 py-1.5 font-semibold text-white"
-            >
-              1
-            </button>
-            <button
-              type="button"
-              disabled
-              className="rounded-md px-2.5 py-1.5 text-slate-gray/40 disabled:cursor-not-allowed"
-              aria-label="Next page"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          {meta && meta.totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage(page - 1)}
+                disabled={!meta.hasPreviousPage}
+                className="rounded-md px-2.5 py-1.5 hover:bg-cloud-sky/60 disabled:cursor-not-allowed disabled:text-slate-gray/40 disabled:hover:bg-transparent"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {pageWindow(meta.page, meta.totalPages).map((number) => (
+                <button
+                  key={number}
+                  type="button"
+                  onClick={() => setPage(number)}
+                  aria-current={number === meta.page ? "page" : undefined}
+                  className={
+                    number === meta.page
+                      ? "rounded-md bg-primary-navy px-3 py-1.5 font-semibold text-white"
+                      : "rounded-md px-3 py-1.5 hover:bg-cloud-sky/60"
+                  }
+                >
+                  {number}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage(page + 1)}
+                disabled={!meta.hasNextPage}
+                className="rounded-md px-2.5 py-1.5 hover:bg-cloud-sky/60 disabled:cursor-not-allowed disabled:text-slate-gray/40 disabled:hover:bg-transparent"
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
