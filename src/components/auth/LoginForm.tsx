@@ -11,6 +11,22 @@ import { Input, PasswordInput } from "../ui/Input";
 import { Checkbox } from "../ui/Checkbox";
 import { Button } from "../ui/Button";
 import { loginSchema, type LoginValues } from "../../lib/validation/auth";
+import { useAuthStore } from "../../lib/store/auth-store";
+
+const UNREACHABLE_MESSAGE = "Can't reach the server. Please try again shortly.";
+
+// Branch on errorCode first: ACCOUNT_LOCKED arrives as a 401 too, so status alone would hide it.
+function loginErrorMessage(status: number, body: { errorCode?: string; message?: string } | null) {
+  if (body?.errorCode === "ACCOUNT_LOCKED") {
+    return "Account temporarily locked after too many failed attempts. Try again in 15 minutes.";
+  }
+  if (status === 429 || body?.errorCode === "RATE_LIMITED") return "Too many attempts. Please wait and try again.";
+  if (status === 502 || body?.errorCode === "BACKEND_UNREACHABLE") return UNREACHABLE_MESSAGE;
+  if (status === 401) return "Invalid email or password.";
+  // 403s (pending invitation, inactive account, no active school) carry a user-facing message.
+  if (status === 403 && body?.message) return body.message;
+  return "Something went wrong. Please try again.";
+}
 
 /**
  * Login form — "Login - Default State" screen from the Stitch design system.
@@ -19,6 +35,7 @@ import { loginSchema, type LoginValues } from "../../lib/validation/auth";
 export function LoginForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const setSession = useAuthStore((s) => s.setSession);
 
   const {
     register,
@@ -32,25 +49,24 @@ export function LoginForm() {
   async function onSubmit(values: LoginValues) {
     setServerError(null);
     try {
-      // TODO: wire up to the real EduGear auth endpoint.
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
+        credentials: "include",
       });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? "Invalid email or password.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        setServerError(loginErrorMessage(res.status, data));
+        return;
       }
 
-      router.push("/dashboard");
-    } catch (err) {
-      setServerError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again.",
-      );
+      setSession(data);
+      // Parents only hold portal.access and are refused on staff routes, so they go to the portal.
+      router.push(data.permissions.includes("portal.access") ? "/portal" : "/dashboard");
+    } catch {
+      // fetch itself failed: the Next.js server (not just the backend) is unreachable.
+      setServerError(UNREACHABLE_MESSAGE);
     }
   }
 

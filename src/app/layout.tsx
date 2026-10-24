@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
+import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -18,7 +20,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${beVietnamPro.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-primary-navy">
-        {children}
+        <QueryProvider>
+          <AuthBootstrap>{children}</AuthBootstrap>
+        </QueryProvider>
       </body>
     </html>
   );
