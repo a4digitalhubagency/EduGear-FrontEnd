@@ -67,10 +67,11 @@ export function usePayments(query: PaymentsQuery) {
   });
 }
 
-export function useReceipt(paymentId: string) {
+/** path: where to fetch it; parents use /portal/children/:studentId/payments/:id/receipt. */
+export function useReceipt(paymentId: string, path = `/finance/payments/${paymentId}/receipt`) {
   return useQuery({
     queryKey: financeKeys.receipt(paymentId),
-    queryFn: () => api<Receipt>(`/finance/payments/${paymentId}/receipt`),
+    queryFn: () => api<Receipt>(path),
     staleTime: Infinity, // a receipt never changes once issued
   });
 }

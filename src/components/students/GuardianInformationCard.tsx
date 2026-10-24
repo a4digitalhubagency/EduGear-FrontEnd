@@ -5,6 +5,7 @@ import { Mail, Phone, Plus, ShieldUser } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { GuardianFormModal } from "@/components/students/GuardianFormModal";
+import { GuardianPortalAccess } from "@/components/students/GuardianPortalAccess";
 import { RemoveGuardianDialog } from "@/components/students/RemoveGuardianDialog";
 import { errorMessage } from "@/lib/api-client";
 import { useUnlinkGuardian, useUpdateGuardianLink } from "@/lib/queries/guardians";
@@ -111,6 +112,8 @@ export function GuardianInformationCard({ studentId, studentName, guardians }: G
                   </p>
                 )}
               </div>
+
+              <GuardianPortalAccess guardianId={guardian.guardianId} guardianName={guardian.fullName} hasEmail={Boolean(guardian.email)} />
 
               {canLink && (
                 <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">

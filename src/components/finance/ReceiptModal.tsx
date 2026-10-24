@@ -22,8 +22,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
  * A verified payment's receipt (GET /finance/payments/:id/receipt), laid out to print
  * on its own: the .print-area rules in globals.css hide the rest of the app.
  */
-export function ReceiptModal({ paymentId, onClose }: { paymentId: string; onClose: () => void }) {
-  const receipt = useReceipt(paymentId);
+export function ReceiptModal({ paymentId, path, onClose }: { paymentId: string; path?: string; onClose: () => void }) {
+  const receipt = useReceipt(paymentId, path);
   const logo = useFileUrl(receipt.data?.school.logoUrl);
   const r = receipt.data;
 
