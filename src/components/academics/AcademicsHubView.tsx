@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpCircle, BarChart3, ClipboardCheck, PencilLine, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpCircle,
+  BarChart3,
+  CalendarCog,
+  ClipboardCheck,
+  PencilLine,
+  type LucideIcon,
+} from "lucide-react";
 
 interface AcademicsModule {
   title: string;
@@ -9,6 +17,12 @@ interface AcademicsModule {
 }
 
 const ACADEMICS_MODULES: AcademicsModule[] = [
+  {
+    title: "Academic Setup",
+    description: "Sessions, terms, classes and arms. Set these up first.",
+    icon: CalendarCog,
+    href: "/academics/setup",
+  },
   {
     title: "Attendance Register",
     description: "Mark and manage daily class attendance, arm by arm.",

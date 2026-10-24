@@ -26,3 +26,31 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 );
 
 Select.displayName = "Select";
+
+interface SelectFieldProps extends SelectProps {
+  label: string;
+  error?: string;
+}
+
+/** Full-width form Select with a label and error line, matching Input's (as hand-built in GuardianFormModal). */
+export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
+  ({ label, error, id, className, ...props }, ref) => {
+    const selectId = id ?? props.name;
+    return (
+      <div className="w-full">
+        <label htmlFor={selectId} className="mb-1.5 block text-sm font-semibold text-primary-navy">
+          {label}
+        </label>
+        <Select
+          ref={ref}
+          id={selectId}
+          className={cn("w-full py-3", error && "border-red-500 focus:border-red-500 focus:ring-red-500/20", className)}
+          {...props}
+        />
+        {error && <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>}
+      </div>
+    );
+  },
+);
+
+SelectField.displayName = "SelectField";
