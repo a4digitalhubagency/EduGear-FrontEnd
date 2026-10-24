@@ -1,124 +1,102 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Filter, RotateCcw, Save, Search } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, GraduationCap, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { LoadingText, RetryButton } from "@/components/ui/table";
 import { ConfirmPromotionModal } from "@/components/academics/ConfirmPromotionModal";
-import { PromotionStatusBadge } from "@/components/academics/PromotionStatusBadge";
-import { getInitials } from "@/lib/utils";
-import {
-  NEXT_CLASS,
-  PROMOTION_ARM_OPTIONS,
-  PROMOTION_CLASS_OPTIONS,
-  PROMOTION_SESSION_OPTIONS,
-  findPromotionRoster,
-} from "@/lib/mock-promotion";
-import type { PromotionCandidate } from "@/types/promotion";
+import { ArmOptions } from "@/components/students/ArmOptions";
+import { StudentAvatar } from "@/components/students/StudentAvatar";
+import { errorMessage } from "@/lib/api-client";
+import { useClassArms } from "@/lib/queries/academics";
+import { useLatestResultSheet } from "@/lib/queries/results";
+import { useArmRoster, usePromoteStudents } from "@/lib/queries/students";
+import { useCan } from "@/lib/store/auth-store";
+import type { ClassArm } from "@/types/academics";
+import type { PromotionResult } from "@/types/promotion";
 
-const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-700",
-  "bg-green-100 text-green-700",
-  "bg-pink-100 text-pink-700",
-  "bg-amber-100 text-amber-700",
-];
+/** Destination value meaning "graduate them" rather than an arm id. */
+const GRADUATE = "__graduate";
 
-interface LoadedRoster {
-  className: string;
-  arm: string;
-  session: string;
-}
-
-interface CompletedPromotion {
-  count: number;
-  from: string;
-  to: string;
-  session: string;
+/**
+ * Suggested destination for a source arm: the same arm letter one class level up
+ * (JSS 1 A -> JSS 2 A), else the first arm one level up, else graduation (top class).
+ * Only a suggestion; the user can pick any arm.
+ */
+function suggestDestination(from: ClassArm, arms: ClassArm[]) {
+  const nextLevel = arms.filter((a) => a.classLevel === from.classLevel + 1);
+  if (nextLevel.length === 0) return arms.some((a) => a.classLevel > from.classLevel) ? "" : GRADUATE;
+  return (nextLevel.find((a) => a.name === from.name) ?? nextLevel[0]).id;
 }
 
 /**
- * "Student Promotion" screen — the "Setup & List (Desktop)" screen plus
- * the "Confirm Student Promotion" modal from "Operational States".
+ * "Student Promotion" (Setup & List + the Confirm modal), on POST /students/promotions.
+ * Pick a source arm and a destination arm (or graduation), load its Active students,
+ * untick anyone repeating the class, and promote the rest in one transaction.
  *
- * "Load Roster" looks up a mock roster for the chosen Current Class/Arm
- * (only JSS 2 / A is seeded, see mock-promotion.ts — any other combination
- * loads an empty table). Rows marked "Ineligible" can't be checked;
- * "Eligible" rows are pre-checked on load, "Pending Review" rows are not.
- * "Promote Selected" opens the confirm modal; confirming simulates the
- * bulk-promote call and swaps the roster for a "Promotion Complete" summary
- * card, same "load -> act -> confirm -> success" shape as the Attendance
- * Register's save flow.
- *
- * "Save Draft" and "Filter" are inert affordances — no design exists yet
- * for a saved-draft state or a filter panel, same treatment as other
- * not-yet-designed controls elsewhere (e.g. "More Actions" on Student
- * Profile). The Eligible/Pending Review/Ineligible split is fixed per mock
- * candidate rather than computed from a real promotion policy — that logic
- * arrives once the backend is wired up.
+ * Differences from the design: no session pickers (the backend moves students between
+ * arms, independent of sessions); no Eligible/Pending/Ineligible column (the backend
+ * has no promotion policy, and inventing a cut-off would be guessing a school's rules);
+ * instead each student's average and position from the arm's latest result sheet.
+ * Save Draft and Filter are gone; neither had anything behind it.
  */
-export   function StudentPromotionView() {
-  const [session, setSession] = useState(PROMOTION_SESSION_OPTIONS[0]);
-  const [newSession, setNewSession] = useState(PROMOTION_SESSION_OPTIONS[1]);
-  const [currentClass, setCurrentClass] = useState("");
-  const [currentArm, setCurrentArm] = useState("");
-  const [destClass, setDestClass] = useState("");
-  const [destArm, setDestArm] = useState("");
+export function StudentPromotionView() {
+  const canPromote = useCan("students.update");
+  const canReadResults = useCan("results.read");
+  const arms = useClassArms();
+  const armList = arms.data?.data ?? [];
+
+  const [fromArmId, setFromArmId] = useState("");
+  const [destination, setDestination] = useState("");
+  const [loadedArmId, setLoadedArmId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [deselected, setDeselected] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState<PromotionResult | null>(null);
 
-  const [roster, setRoster] = useState<PromotionCandidate[] | null>(null);
-  const [loadedFor, setLoadedFor] = useState<LoadedRoster | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [completed, setCompleted] = useState<CompletedPromotion | null>(null);
-  const [showDraftToast, setShowDraftToast] = useState(false);
+  const roster = useArmRoster(loadedArmId ?? undefined);
+  const sheet = useLatestResultSheet(loadedArmId ?? undefined, canReadResults);
+  const promote = usePromoteStudents();
 
-  function handleCurrentClassChange(value: string) {
-    setCurrentClass(value);
-    if (!destClass) setDestClass(NEXT_CLASS[value] ?? "");
+  const fromArm = armList.find((a) => a.id === fromArmId);
+  const loadedArm = armList.find((a) => a.id === loadedArmId);
+  const destArm = armList.find((a) => a.id === destination);
+  const graduating = destination === GRADUATE;
+
+  const performance = useMemo(
+    () => new Map((sheet.data?.students ?? []).map((s) => [s.studentId, s])),
+    [sheet.data],
+  );
+
+  // Memoised so the empty fallback is one stable array, not a new one every render.
+  const students = useMemo(() => roster.data ?? [], [roster.data]);
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? students.filter((s) => s.fullName.toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q)) : students;
+  }, [students, search]);
+  // Everyone starts ticked; the list tracks who's been unticked (repeating the class).
+  const selectedIds = students.filter((s) => !deselected.has(s.id)).map((s) => s.id);
+  const allVisibleTicked = visible.length > 0 && visible.every((s) => !deselected.has(s.id));
+
+  function pickFrom(id: string) {
+    setFromArmId(id);
+    const arm = armList.find((a) => a.id === id);
+    setDestination(arm ? suggestDestination(arm, armList) : "");
   }
 
-  function handleCurrentArmChange(value: string) {
-    setCurrentArm(value);
-    if (!destArm) setDestArm(value);
-  }
-
-  function handleLoadRoster() {
-    const found = findPromotionRoster(currentClass, currentArm);
-    setRoster(found);
-    setSelectedIds(new Set(found.filter((c) => c.status === "eligible").map((c) => c.id)));
-    setLoadedFor({ className: currentClass, arm: currentArm, session });
+  function loadRoster() {
+    setLoadedArmId(fromArmId);
+    setDeselected(new Set());
     setCompleted(null);
     setSearch("");
   }
 
-  const filteredRoster = useMemo(() => {
-    if (!roster) return [];
-    const query = search.trim().toLowerCase();
-    if (!query) return roster;
-    return roster.filter(
-      (c) => c.name.toLowerCase().includes(query) || c.displayId.toLowerCase().includes(query),
-    );
-  }, [roster, search]);
-
-  const selectableIds = filteredRoster.filter((c) => c.status !== "ineligible").map((c) => c.id);
-  const allSelectableChecked = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
-
-  function toggleSelectAll() {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (allSelectableChecked) {
-        selectableIds.forEach((id) => next.delete(id));
-      } else {
-        selectableIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  }
-
-  function toggleRow(id: string) {
-    setSelectedIds((current) => {
+  function toggle(id: string) {
+    setDeselected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -126,40 +104,43 @@ export   function StudentPromotionView() {
     });
   }
 
-  async function handleConfirmPromotion() {
-    setIsConfirming(true);
-    // TODO: wire up to the real EduGear "promote students" endpoint once the backend is ready.
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setIsConfirming(false);
-    setShowConfirm(false);
-    setCompleted({
-      count: selectedIds.size,
-      from: `${loadedFor?.className} ${loadedFor?.arm}`,
-      to: `${destClass} ${destArm}`,
-      session: newSession,
+  function toggleAllVisible() {
+    setDeselected((current) => {
+      const next = new Set(current);
+      for (const s of visible) {
+        if (allVisibleTicked) next.add(s.id);
+        else next.delete(s.id);
+      }
+      return next;
     });
-    setRoster(null);
-    setSelectedIds(new Set());
   }
 
-  function handleSaveDraft() {
-    setShowDraftToast(true);
-    setTimeout(() => setShowDraftToast(false), 3000);
+  async function handleConfirm() {
+    if (!loadedArmId) return;
+    setError(null);
+    try {
+      const result = await promote.mutateAsync({
+        fromClassArmId: loadedArmId,
+        ...(graduating ? { graduate: true } : { toClassArmId: destination }),
+        studentIds: selectedIds,
+      });
+      setConfirming(false);
+      setCompleted(result);
+      setLoadedArmId(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   }
 
-  function handleStartNewPromotion() {
-    setCompleted(null);
-    setCurrentClass("");
-    setCurrentArm("");
-    setDestClass("");
-    setDestArm("");
-    setRoster(null);
-    setLoadedFor(null);
-  }
+  const destinationInvalid = !destination || destination === loadedArmId;
 
-  const canLoad = currentClass !== "" && currentArm !== "";
-  const fromLabel = loadedFor ? `${loadedFor.className} ${loadedFor.arm} (${loadedFor.session})` : "";
-  const toLabel = destClass && destArm ? `${destClass} ${destArm}` : "";
+  if (!canPromote) {
+    return (
+      <div className="rounded-xl border border-slate-gray/10 bg-white px-4 py-12 text-center text-sm text-slate-gray">
+        You don&apos;t have permission to promote students.
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -169,195 +150,152 @@ export   function StudentPromotionView() {
         </p>
         <h1 className="mt-1 text-2xl font-bold text-primary-navy">Student Promotion</h1>
         <p className="mt-1 text-sm text-slate-gray">
-          Promote students to their next academic level and update enrollment records for the
-          upcoming academic session.
+          Move a class arm&apos;s students up to their next class, or graduate a final-year class.
         </p>
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-5">
         <h2 className="text-sm font-bold text-primary-navy">Promotion Setup</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div>
-            <label className="text-xs font-semibold text-slate-gray">Academic Session</label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Select value={session} onChange={(e) => setSession(e.target.value)} className="flex-1">
-                {PROMOTION_SESSION_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-              <ArrowRight className="h-4 w-4 shrink-0 text-slate-gray/60" />
-              <Select value={newSession} onChange={(e) => setNewSession(e.target.value)} className="flex-1">
-                {PROMOTION_SESSION_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-            </div>
-            <span className="mt-1 block text-[11px] text-slate-gray">Current session → New academic session</span>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="min-w-56 flex-1">
+            <label className="text-xs font-semibold text-slate-gray">From class / arm</label>
+            <Select className="mt-1.5 w-full" value={fromArmId} onChange={(e) => pickFrom(e.target.value)} aria-label="From class and arm">
+              <ArmOptions emptyLabel="Select current class and arm" />
+            </Select>
           </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-gray">Class / Arm</label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Select
-                value={currentClass}
-                onChange={(e) => handleCurrentClassChange(e.target.value)}
-                className="flex-1"
-              >
-                <option value="">Class</option>
-                {PROMOTION_CLASS_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-              <Select value={currentArm} onChange={(e) => handleCurrentArmChange(e.target.value)} className="w-20">
-                <option value="">Arm</option>
-                {PROMOTION_ARM_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-              <ArrowRight className="h-4 w-4 shrink-0 text-slate-gray/60" />
-              <Select value={destClass} onChange={(e) => setDestClass(e.target.value)} className="flex-1">
-                <option value="">Class</option>
-                {PROMOTION_CLASS_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-              <Select value={destArm} onChange={(e) => setDestArm(e.target.value)} className="w-20">
-                <option value="">Arm</option>
-                {PROMOTION_ARM_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </Select>
-            </div>
-            <span className="mt-1 block text-[11px] text-slate-gray">Current class/arm → Destination class/arm</span>
+          <ArrowRight className="mb-3 h-4 w-4 shrink-0 text-slate-gray/60" />
+          <div className="min-w-56 flex-1">
+            <label className="text-xs font-semibold text-slate-gray">To class / arm</label>
+            <Select
+              className="mt-1.5 w-full"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              aria-label="Destination class and arm"
+              disabled={!fromArmId}
+            >
+              <ArmOptions emptyLabel="Select destination" />
+              <option value={GRADUATE}>Graduate (leave the school)</option>
+            </Select>
           </div>
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <Button type="button" onClick={handleLoadRoster} disabled={!canLoad} className="w-auto px-5 py-2.5">
+          <Button type="button" onClick={loadRoster} disabled={!fromArmId} className="w-auto px-5 py-2.5">
             <RotateCcw className="h-4 w-4" />
             Load Roster
           </Button>
         </div>
+        {fromArm && destination && !graduating && destination === fromArmId && (
+          <p className="mt-2 text-xs font-medium text-red-600">The destination must be a different arm.</p>
+        )}
+        {fromArm && destArm && destArm.classLevel <= fromArm.classLevel && destArm.id !== fromArm.id && (
+          <p className="mt-2 text-xs text-amber-700">
+            {destArm.fullName} isn&apos;t a higher class than {fromArm.fullName}. That&apos;s fine for moving students between
+            arms; just check it&apos;s what you meant.
+          </p>
+        )}
       </div>
 
       {completed ? (
-        <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-10 text-center">
+        <div className="mt-6 animate-fade-in-up rounded-xl border border-slate-gray/10 bg-white p-10 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-600">
-            <CheckCircle2 className="h-6 w-6" />
+            {completed.graduated ? <GraduationCap className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
           </div>
-          <p className="mt-4 text-sm font-semibold text-primary-navy">Promotion Complete</p>
+          <p className="mt-4 text-sm font-semibold text-primary-navy">{completed.graduated ? "Graduation Complete" : "Promotion Complete"}</p>
           <p className="mx-auto mt-1 max-w-sm text-xs text-slate-gray">
-            {completed.count} student{completed.count === 1 ? "" : "s"} promoted from {completed.from} to{" "}
-            {completed.to} for the {completed.session} session.
+            {completed.graduated
+              ? `${completed.graduated} student${completed.graduated === 1 ? "" : "s"} graduated from ${completed.from}.`
+              : `${completed.promoted} student${completed.promoted === 1 ? "" : "s"} moved from ${completed.from} to ${completed.to}.`}
           </p>
-          <Button
-            type="button"
-            variant="secondary"
-            className="mx-auto mt-4 w-auto px-4 py-2.5"
-            onClick={handleStartNewPromotion}
-          >
-            Start New Promotion
-          </Button>
+          <div className="mx-auto mt-4 flex max-w-sm justify-center gap-3">
+            <Button type="button" variant="secondary" className="w-auto flex-1 px-4 py-2.5" onClick={() => setCompleted(null)}>
+              Start New Promotion
+            </Button>
+            <Link href="/students" className="flex-1">
+              <Button type="button" className="w-full px-4 py-2.5">
+                View Students
+              </Button>
+            </Link>
+          </div>
         </div>
-      ) : roster === null ? (
+      ) : !loadedArmId ? (
         <div className="mt-6 rounded-xl border border-dashed border-slate-gray/20 bg-white p-10 text-center">
           <p className="text-sm font-semibold text-primary-navy">No Roster Loaded</p>
           <p className="mx-auto mt-1 max-w-sm text-xs text-slate-gray">
-            Select a Current Class and Arm above, then click &ldquo;Load Roster&rdquo; to review
-            eligible students.
+            Select the current class and arm above, then click &ldquo;Load Roster&rdquo; to review its students.
           </p>
         </div>
+      ) : roster.isPending ? (
+        <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-10 text-center text-sm text-slate-gray">
+          <LoadingText label="Loading roster..." />
+        </div>
+      ) : roster.isError ? (
+        <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-10 text-center text-sm text-slate-gray">
+          {errorMessage(roster.error)}
+          <RetryButton onRetry={() => roster.refetch()} />
+        </div>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 animate-fade-in-up space-y-4">
           <div className="overflow-x-auto rounded-xl border border-slate-gray/10 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-gray/10 p-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-primary-navy">
-                  {loadedFor?.className} {loadedFor?.arm} Roster
-                </h2>
+                <h2 className="text-sm font-bold text-primary-navy">{loadedArm?.fullName} Roster</h2>
                 <span className="rounded-full bg-cloud-sky px-2.5 py-1 text-xs font-semibold text-bright-blue">
-                  {roster.length} Students
+                  {students.length} Active Student{students.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-[220px] flex-1">
-                  <Input
-                    icon={Search}
-                    placeholder="Search student name or ID..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="py-2.5"
-                  />
-                </div>
-                <Button type="button" variant="ghost" className="w-auto px-3 py-2.5">
-                  <Filter className="h-4 w-4" />
-                  Filter
-                </Button>
+              <div className="min-w-[220px] flex-1 sm:max-w-xs">
+                <Input icon={Search} placeholder="Search student name or admission no..." value={search} onChange={(e) => setSearch(e.target.value)} className="py-2.5" />
               </div>
             </div>
 
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[680px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray">
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
-                      aria-label="Select all eligible students"
-                      checked={allSelectableChecked}
-                      onChange={toggleSelectAll}
+                      aria-label="Select all shown students"
+                      checked={allVisibleTicked}
+                      onChange={toggleAllVisible}
+                      disabled={visible.length === 0}
                       className="h-4 w-4 rounded border-slate-gray/40"
                     />
                   </th>
                   <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Student ID</th>
+                  <th className="px-4 py-3">Admission No.</th>
                   <th className="px-4 py-3">Academic Performance</th>
-                  <th className="px-4 py-3">Promotion Status</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRoster.length === 0 ? (
+                {visible.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-gray">
-                      No students found for this class and arm.
+                    <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-gray">
+                      {students.length === 0 ? `No active students in ${loadedArm?.fullName}.` : "No students match your search."}
                     </td>
                   </tr>
                 ) : (
-                  filteredRoster.map((candidate, index) => {
-                    const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
-                    const disabled = candidate.status === "ineligible";
+                  visible.map((s) => {
+                    const result = performance.get(s.id);
                     return (
-                      <tr key={candidate.id} className="border-b border-slate-gray/10 last:border-0">
+                      <tr key={s.id} className="border-b border-slate-gray/10 last:border-0">
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
-                            aria-label={`Select ${candidate.name}`}
-                            checked={selectedIds.has(candidate.id)}
-                            disabled={disabled}
-                            onChange={() => toggleRow(candidate.id)}
-                            className="h-4 w-4 rounded border-slate-gray/40 disabled:opacity-40"
+                            aria-label={`Select ${s.fullName}`}
+                            checked={!deselected.has(s.id)}
+                            onChange={() => toggle(s.id)}
+                            className="h-4 w-4 rounded border-slate-gray/40"
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarColor}`}
-                            >
-                              {getInitials(candidate.name)}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-primary-navy">{candidate.name}</p>
-                              <p className="text-xs text-slate-gray">
-                                {loadedFor?.className} {loadedFor?.arm}
-                              </p>
-                            </div>
-                          </div>
+                          <Link href={`/students/${s.id}`} className="flex items-center gap-2.5">
+                            <StudentAvatar id={s.id} name={`${s.firstName} ${s.lastName}`} photoUrl={s.photoUrl} className="h-8 w-8 text-xs" />
+                            <span className="font-semibold text-primary-navy hover:underline">{s.fullName}</span>
+                          </Link>
                         </td>
-                        <td className="px-4 py-3 text-slate-gray">{candidate.displayId}</td>
+                        <td className="px-4 py-3 text-slate-gray">{s.studentId}</td>
                         <td className="px-4 py-3 text-slate-gray">
-                          {candidate.averageScore}% - {candidate.performanceLabel}
-                        </td>
-                        <td className="px-4 py-3">
-                          <PromotionStatusBadge status={candidate.status} />
+                          {result
+                            ? `${result.averageScore.toFixed(1)}% average${result.positionLabel ? ` · ${result.positionLabel}` : ""}`
+                            : "No results yet"}
                         </td>
                       </tr>
                     );
@@ -365,42 +303,45 @@ export   function StudentPromotionView() {
                 )}
               </tbody>
             </table>
+            {canReadResults && sheet.data && (
+              <p className="border-t border-slate-gray/10 px-4 py-2.5 text-xs text-slate-gray">
+                Performance from the {sheet.data.termName.charAt(0) + sheet.data.termName.slice(1).toLowerCase()} Term, {sheet.data.sessionName} results.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Button type="button" variant="secondary" className="w-auto px-4 py-2.5" onClick={handleSaveDraft}>
-              <Save className="h-4 w-4" />
-              Save Draft
-            </Button>
+            {deselected.size > 0 && (
+              <p className="text-xs text-slate-gray">
+                {deselected.size} unticked student{deselected.size === 1 ? "" : "s"} will stay in {loadedArm?.fullName}.
+              </p>
+            )}
             <Button
               type="button"
               className="w-auto px-4 py-2.5"
-              disabled={selectedIds.size === 0}
-              onClick={() => setShowConfirm(true)}
+              disabled={selectedIds.length === 0 || destinationInvalid}
+              title={destinationInvalid ? "Choose a different destination arm, or graduation" : undefined}
+              onClick={() => {
+                setError(null);
+                setConfirming(true);
+              }}
             >
-              Promote Selected ({selectedIds.size})
+              {graduating ? `Graduate Selected (${selectedIds.length})` : `Promote Selected (${selectedIds.length})`}
             </Button>
           </div>
         </div>
       )}
 
-      {showConfirm && (
+      {confirming && loadedArm && (
         <ConfirmPromotionModal
-          fromLabel={fromLabel}
-          toLabel={toLabel}
-          newSession={newSession}
-          studentCount={selectedIds.size}
-          isConfirming={isConfirming}
-          onCancel={() => setShowConfirm(false)}
-          onConfirm={handleConfirmPromotion}
+          fromLabel={loadedArm.fullName}
+          toLabel={graduating ? null : (destArm?.fullName ?? "")}
+          studentCount={selectedIds.length}
+          isConfirming={promote.isPending}
+          error={error}
+          onCancel={() => setConfirming(false)}
+          onConfirm={handleConfirm}
         />
-      )}
-
-      {showDraftToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-primary-navy px-4 py-3 text-sm font-semibold text-white shadow-xl">
-          <Save className="h-4 w-4 text-cloud-sky" />
-          Draft saved.
-        </div>
       )}
     </div>
   );

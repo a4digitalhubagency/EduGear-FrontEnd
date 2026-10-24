@@ -21,6 +21,22 @@ export type ResultSheetSummary = {
   returnedReason: string | null;
 };
 
+/** GET /results/sheets/:id: a class's results in position order. */
+export type ResultSheet = ResultSheetSummary & {
+  students: {
+    studentId: string;
+    admissionNumber: string;
+    studentName: string;
+    totalScore: number;
+    averageScore: number;
+    position: number | null;
+    positionLabel: string | null; // "2nd"
+    subjectCount: number;
+    passes: number;
+    failures: number;
+  }[];
+};
+
 /** GET /results/report-cards/:studentId?termId (404 when the student has no results that term). */
 export type ReportCard = {
   className: string;

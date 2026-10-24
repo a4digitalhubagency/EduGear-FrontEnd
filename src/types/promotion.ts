@@ -1,12 +1,19 @@
-export type PromotionStatus = "eligible" | "pending-review" | "ineligible";
+/** Mirrors PromoteStudentsDto / PromotionResultDto in the backend's src/students/dto/bulk.dto.ts. */
 
-export interface PromotionCandidate {
-  id: string;
-  name: string;
-  displayId: string;
-  gender: "Male" | "Female";
-  averageScore: number;
-  /** e.g. "Distinction", "Credit", "Pass (Borderline)", "Fail" — matches the "Academic Performance" column text. */
-  performanceLabel: string;
-  status: PromotionStatus;
-}
+/**
+ * POST /students/promotions. Either toClassArmId or graduate, never both. Only ACTIVE
+ * students in the source arm move; studentIds narrows it to a subset (max 500).
+ */
+export type PromoteStudentsInput = {
+  fromClassArmId: string;
+  toClassArmId?: string;
+  graduate?: boolean; // marks them GRADUATED and clears their arm
+  studentIds?: string[];
+};
+
+export type PromotionResult = {
+  promoted: number;
+  graduated: number;
+  from: string | null; // "JSS1 A"
+  to: string | null;
+};
