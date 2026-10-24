@@ -5,17 +5,29 @@ import { ChevronRight, Megaphone, PencilLine, Receipt, UserPlus } from "lucide-r
 
 const ACTIONS = [
   { label: "Add Student", icon: UserPlus, href: "/students/new" },
-  { label: "Record Payment", icon: Receipt, href: null },
+  { label: "Record Payment", icon: Receipt, href: "/finance?tab=payments&record=1" },
   { label: "Announce", icon: Megaphone, href: null },
   { label: "Enter Results", icon: PencilLine, href: null },
 ];
 
 const FREQUENTLY_USED = ["Generate Termly Reports", "Export Staff Payroll"];
 
+function SoonBadge() {
+  return (
+    <span className="rounded-full bg-slate-gray/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-gray">
+      Coming Soon
+    </span>
+  );
+}
+
 /**
- * "Quick Actions" card. Only "Add Student" has a real route today — the
- * others (Finance, Communication, Academics modules) aren't built yet, so
- * they render as inert buttons rather than linking anywhere.
+ * "Quick Actions" card. "Add Student" and "Record Payment" (straight into the Finance
+ * record-payment form) are real. The rest render as disabled "Coming Soon" tiles, same
+ * treatment as the Academics hub's Gradebook card, rather than buttons that do nothing:
+ * - Announce: the backend has no announcements endpoint yet.
+ * - Enter Results / Generate Termly Reports: the backend supports results and report
+ *   cards, but the Results screens aren't built yet.
+ * - Export Staff Payroll: payroll doesn't exist in the backend.
  */
 export function QuickActionsCard() {
   return (
@@ -25,23 +37,28 @@ export function QuickActionsCard() {
       <div className="mt-3 grid grid-cols-2 gap-2.5">
         {ACTIONS.map((action) => {
           const Icon = action.icon;
-          const content = (
-            <>
+          return action.href ? (
+            <Link
+              key={action.label}
+              href={action.href}
+              className="flex flex-col items-center justify-center rounded-lg bg-cloud-sky/50 px-3 py-4 text-center hover:bg-cloud-sky"
+            >
               <Icon className="h-5 w-5 text-bright-blue" />
               <span className="mt-1.5 text-xs font-semibold text-primary-navy">{action.label}</span>
-            </>
-          );
-          const className =
-            "flex flex-col items-center justify-center rounded-lg bg-cloud-sky/50 px-3 py-4 text-center hover:bg-cloud-sky";
-
-          return action.href ? (
-            <Link key={action.label} href={action.href} className={className}>
-              {content}
             </Link>
           ) : (
-            <button key={action.label} type="button" className={className}>
-              {content}
-            </button>
+            <div
+              key={action.label}
+              aria-disabled="true"
+              title="Coming soon"
+              className="flex cursor-not-allowed flex-col items-center justify-center rounded-lg bg-slate-gray/5 px-3 py-4 text-center opacity-60"
+            >
+              <Icon className="h-5 w-5 text-slate-gray" />
+              <span className="mt-1.5 text-xs font-semibold text-slate-gray">{action.label}</span>
+              <span className="mt-1">
+                <SoonBadge />
+              </span>
+            </div>
           );
         })}
       </div>
@@ -51,14 +68,18 @@ export function QuickActionsCard() {
       </p>
       <div className="mt-2 space-y-1.5">
         {FREQUENTLY_USED.map((item) => (
-          <button
+          <div
             key={item}
-            type="button"
-            className="flex w-full items-center justify-between rounded-lg border border-slate-gray/10 px-3 py-2 text-left text-xs font-medium text-primary-navy hover:bg-cloud-sky/40"
+            aria-disabled="true"
+            title="Coming soon"
+            className="flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-slate-gray/10 px-3 py-2 text-xs font-medium text-slate-gray opacity-60"
           >
             {item}
-            <ChevronRight className="h-3.5 w-3.5 text-slate-gray" />
-          </button>
+            <span className="flex items-center gap-1.5">
+              <SoonBadge />
+              <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+          </div>
         ))}
       </div>
     </div>

@@ -39,3 +39,26 @@ export interface AttendanceAlert {
   actionLabel: string;
   actionHref: string;
 }
+// --- API types (mirror the backend's src/attendance/dto/attendance.dto.ts) ---
+// The mock-era types above stay until the attendance screens move to the API.
+
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+
+/** GET /attendance/summary row: one student's attendance over a term. */
+export interface StudentAttendanceSummary {
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  daysOpen: number; // days a register included this student
+  present: number; // includes late
+  absent: number; // includes excused
+  late: number;
+  excused: number;
+  rate: number; // present / daysOpen, 0-100
+}
+
+/** GET /attendance/students/:studentId?termId */
+export interface StudentTermAttendance {
+  summary: Omit<StudentAttendanceSummary, "studentId" | "studentName" | "admissionNumber">;
+  records: { date: string; status: AttendanceStatus; note: string | null }[];
+}
