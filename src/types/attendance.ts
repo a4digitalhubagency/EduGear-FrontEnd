@@ -1,48 +1,38 @@
-export type AttendanceMark = "present" | "absent" | "late" | "excused";
+/** Mirrors the backend's src/attendance/dto/attendance.dto.ts. */
 
-export interface AttendanceEntry {
-  id: string;
-  name: string;
-  gender: "Male" | "Female";
-  /**
-   * This screen's own ID format in the Stitch mock (e.g. "ADS-25-082") —
-   * distinct from the "EDU-####" IDs used on the Students screens. Kept as
-   * shown in the design rather than reconciled with the Students module;
-   * see the note in docs/ARCHITECTURE.md.
-   */
-  displayId: string;
-  previousDayStatus: AttendanceMark | null;
-  status: AttendanceMark | null;
+export const ATTENDANCE_STATUSES = ["PRESENT", "ABSENT", "LATE", "EXCUSED"] as const;
+export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+
+/** One student's line on a day's register (GET /attendance/register). */
+export interface RegisterRow {
+  studentId: string;
+  admissionNumber: string;
+  studentName: string;
+  status: AttendanceStatus | null; // null: not marked
+  note: string | null;
 }
 
-export interface AttendanceRegister {
+/** GET /attendance/register?classArmId&date, and what PUT returns. */
+export interface Register {
+  classArmId: string;
   className: string;
-  arm: string;
-  date: string; // yyyy-mm-dd, matches a native <input type="date">
-  status: "draft" | "completed";
-  submittedBy?: string;
-  submittedAt?: string;
-  entries: AttendanceEntry[];
-}
-/** One point on an Attendance Reports trend chart (the 30-day trend or the weekly mini-chart). */
-export interface AttendanceTrendPoint {
-  label: string;
-  rate: number; // 0-100
+  date: string;
+  termName: string | null; // null: the date isn't inside any term
+  taken: boolean;
+  canEdit: boolean; // the backend's verdict: form teacher or academics.update, a term day, not in the future
+  students: RegisterRow[];
+  present: number; // on time
+  absent: number; // unexcused
+  late: number;
+  excused: number;
 }
 
-/** One "Requires Attention" item on the Attendance Reports screen. */
-export interface AttendanceAlert {
-  id: string;
-  severity: "critical" | "warning";
-  title: string;
-  description: string;
-  actionLabel: string;
-  actionHref: string;
+/** PUT /attendance/register (1-200 entries; students left out stay unmarked). */
+export interface SaveRegisterInput {
+  classArmId: string;
+  date: string; // "YYYY-MM-DD"
+  entries: { studentId: string; status: AttendanceStatus; note?: string | null }[];
 }
-// --- API types (mirror the backend's src/attendance/dto/attendance.dto.ts) ---
-// The mock-era types above stay until the attendance screens move to the API.
-
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
 /** GET /attendance/summary row: one student's attendance over a term. */
 export interface StudentAttendanceSummary {
@@ -61,4 +51,20 @@ export interface StudentAttendanceSummary {
 export interface StudentTermAttendance {
   summary: Omit<StudentAttendanceSummary, "studentId" | "studentName" | "admissionNumber">;
   records: { date: string; status: AttendanceStatus; note: string | null }[];
+}
+
+/** One bar on an attendance-rate chart. */
+export interface AttendanceTrendPoint {
+  label: string;
+  rate: number; // 0-100
+}
+
+/** One "Requires Attention" item on the Attendance Reports screen. */
+export interface AttendanceAlert {
+  id: string;
+  severity: "critical" | "warning";
+  title: string;
+  description: string;
+  actionLabel: string;
+  actionHref: string;
 }

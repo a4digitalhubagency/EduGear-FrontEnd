@@ -1,171 +1,183 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  CalendarX,
-  CheckCircle2,
-  Download,
-  Info,
-  Pencil,
-  Save,
-  Search,
-} from "lucide-react";
+import { AlertTriangle, CalendarX, CheckCircle2, Info, Lock, Pencil, Save, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FormError } from "@/components/ui/FormError";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { LoadingText, RetryButton } from "@/components/ui/table";
 import { AttendanceMarkToggle } from "@/components/academics/AttendanceMarkToggle";
-import {
-  ARM_OPTIONS_ATTENDANCE,
-  CLASS_OPTIONS_ATTENDANCE,
-  SESSION_OPTIONS_ATTENDANCE,
-  TERM_OPTIONS_ATTENDANCE,
-  buildDraftRoster,
-  findAttendanceRegister,
-} from "@/lib/mock-attendance";
-import type { AttendanceEntry, AttendanceMark } from "@/types/attendance";
+import { ArmOptions } from "@/components/students/ArmOptions";
+import { errorMessage } from "@/lib/api-client";
+import { useClassArms, useCurrentTerm } from "@/lib/queries/academics";
+import { useRegister, useSaveRegister } from "@/lib/queries/attendance";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { formatDate, toDateInput, todayInput } from "@/lib/utils";
+import type { Term } from "@/types/academics";
+import type { AttendanceStatus, Register } from "@/types/attendance";
 
-// Matches the one seeded "completed" register in mock-attendance.ts, so the
-// page opens already showing that operational state once a class/arm is picked.
-const DEFAULT_DATE = "2026-09-16";
-
-const MARK_LABEL: Record<AttendanceMark, string> = {
-  present: "Present",
-  absent: "Absent",
-  late: "Late",
-  excused: "Excused",
+const MARK_LABEL: Record<AttendanceStatus, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LATE: "Late",
+  EXCUSED: "Excused",
 };
 
-function formatNow() {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+type Mark = { status: AttendanceStatus | null; note: string };
+
+/** The weekday before a "YYYY-MM-DD" date (Friday for a Monday), for the Previous Day column. */
+function previousWeekday(date: string) {
+  const d = new Date(`${date}T00:00:00Z`);
+  do d.setUTCDate(d.getUTCDate() - 1);
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+  return d.toISOString().slice(0, 10);
+}
+
+function marksFrom(register: Register): Record<string, Mark> {
+  return Object.fromEntries(register.students.map((s) => [s.studentId, { status: s.status, note: s.note ?? "" }]));
+}
+
+/** Why a register can't be edited, from what the backend tells us about it. */
+function lockedReason(register: Register, date: string, currentTerm: Term | null | undefined) {
+  if (date > todayInput()) return "Registers can't be taken for future dates.";
+  if (!register.termName) {
+    const range = currentTerm ? ` The current term runs ${formatDate(currentTerm.startDate)} to ${formatDate(currentTerm.endDate)}.` : "";
+    return `This date isn't inside any term, so it isn't a school day.${range}`;
+  }
+  return `Only the form teacher of ${register.className} (or an administrator) can take or change this register.`;
 }
 
 /**
- * "Attendance" screen plus the "Attendance Register - Operational States"
- * reference screen. Filters (Session/Term/Class/Arm/Date) drive a lookup
- * against a small mock register store (`src/lib/mock-attendance.ts`):
- *
- * - No Class or Arm picked yet → "No Register Selected" empty state.
- * - A saved register already exists for that Class/Arm/Date → read-only
- *   Completed view (Present/Absent/Late summary, "Submitted by ... at
- *   ...", "Edit Attendance" to re-open it for editing).
- * - No saved register yet → the editable mark-attendance table, seeded
- *   from the same placeholder roster with each row's "Previous Day" mark
- *   shown for reference.
- *
- * Changing a filter while there are unsaved edits shows the "Unsaved
- * Changes Detected" banner (Discard / Save Changes) from the Operational
- * States screen instead of silently discarding the in-progress marks.
- * Session/Term don't affect the mock roster lookup (only Class/Arm/Date
- * do) — a documented simplification, same spirit as the shared roster
- * itself.
+ * Today if it's inside the current term; otherwise the last term day that isn't in the
+ * future (or the term's first day, for a term that hasn't started). Opening on a day
+ * the register can actually be taken saves a confusing "not a school day" first view.
+ */
+function defaultDate(term: Term | null | undefined) {
+  const today = todayInput();
+  if (!term) return today;
+  const start = toDateInput(term.startDate);
+  const end = toDateInput(term.endDate);
+  if (today < start) return start;
+  return today > end ? end : today;
+}
+
+/**
+ * "Attendance" screen plus "Attendance Register - Operational States", on
+ * GET/PUT /attendance/register. Pick an arm and a date (the term comes from the date,
+ * so the design's Session/Term pickers are gone); form teachers open on their own arm.
+ * Whether the register can be edited is the backend's call (canEdit): form teacher or
+ * academics.update, a term day, not in the future. When it can't, the page says why.
  */
 export function AttendanceRegisterView() {
-  const [session, setSession] = useState(SESSION_OPTIONS_ATTENDANCE[0]);
-  const [term, setTerm] = useState(TERM_OPTIONS_ATTENDANCE[0]);
-  const [className, setClassName] = useState("");
-  const [arm, setArm] = useState("");
-  const [date, setDate] = useState(DEFAULT_DATE);
+  const myMembershipId = useAuthStore((s) => s.activeSchool?.membershipId);
+  const arms = useClassArms();
+  const myArm = (arms.data?.data ?? []).find((arm) => arm.formTeacherId && arm.formTeacherId === myMembershipId);
+
+  // null until picked, so a form teacher's own arm can be the default once arms load.
+  const [pickedArm, setPickedArm] = useState<string | null>(null);
+  const classArmId = pickedArm ?? myArm?.id ?? "";
+  const currentTerm = useCurrentTerm();
+  // null until picked, so the default can follow the current term once it loads.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const date = pickedDate ?? defaultDate(currentTerm.data);
   const [search, setSearch] = useState("");
 
-  const [entries, setEntries] = useState<AttendanceEntry[] | null>(null);
-  const [registerStatus, setRegisterStatus] = useState<"none" | "draft" | "completed">("none");
-  const [submittedMeta, setSubmittedMeta] = useState<{ by: string; at: string } | null>(null);
+  const register = useRegister(classArmId || undefined, date);
+  const previous = useRegister(classArmId || undefined, previousWeekday(date));
+  const save = useSaveRegister();
+
+  // Local marks: reset whenever a different register (or a fresh copy of it) arrives.
+  // Adjusting state during render is React's documented pattern for resetting on a key change.
+  const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const [loadedFor, setLoadedFor] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [pendingChange, setPendingChange] = useState<(() => void) | null>(null);
-
-  // Reload the register whenever the Class/Arm/Date combination changes.
-  // This adjusts state during render (React's documented pattern for
-  // resetting state when a prop/derived key changes) rather than in a
-  // useEffect, which would cause an extra, avoidable re-render pass.
-  const registerKey = className && arm ? `${className}-${arm}-${date}` : null;
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  if (registerKey !== loadedKey) {
-    setLoadedKey(registerKey);
-    if (!registerKey) {
-      setEntries(null);
-      setRegisterStatus("none");
-      setSubmittedMeta(null);
-    } else {
-      const existing = findAttendanceRegister(className, arm, date);
-      if (existing) {
-        setEntries(existing.entries);
-        setRegisterStatus("completed");
-        setSubmittedMeta({ by: existing.submittedBy ?? "Unknown", at: existing.submittedAt ?? "" });
-      } else {
-        setEntries(buildDraftRoster());
-        setRegisterStatus("draft");
-        setSubmittedMeta(null);
-      }
-    }
-    setIsEditing(false);
+  if (register.data && register.dataUpdatedAt !== loadedFor) {
+    setLoadedFor(register.dataUpdatedAt);
+    setMarks(marksFrom(register.data));
+    setIsEditing(!register.data.taken && register.data.canEdit);
     setIsDirty(false);
   }
 
-  const filteredEntries = useMemo(() => {
-    if (!entries) return [];
-    const query = search.trim().toLowerCase();
-    if (!query) return entries;
-    return entries.filter(
-      (entry) =>
-        entry.name.toLowerCase().includes(query) || entry.displayId.toLowerCase().includes(query),
-    );
-  }, [entries, search]);
+  const [pendingChange, setPendingChange] = useState<(() => void) | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const canEdit = registerStatus === "draft" || (registerStatus === "completed" && isEditing);
+  const data = register.data;
+  const editable = !!data?.canEdit && isEditing;
+
+  const rows = useMemo(() => {
+    const list = data?.students ?? [];
+    const query = search.trim().toLowerCase();
+    return query
+      ? list.filter((s) => s.studentName.toLowerCase().includes(query) || s.admissionNumber.toLowerCase().includes(query))
+      : list;
+  }, [data, search]);
+
+  const previousMarks = useMemo(
+    () => new Map((previous.data?.taken ? previous.data.students : []).map((s) => [s.studentId, s.status])),
+    [previous.data],
+  );
+
+  const counts = useMemo(() => {
+    const c = { PRESENT: 0, ABSENT: 0, LATE: 0, EXCUSED: 0, unmarked: 0 };
+    for (const s of data?.students ?? []) {
+      const status = marks[s.studentId]?.status;
+      if (status) c[status] += 1;
+      else c.unmarked += 1;
+    }
+    return c;
+  }, [data, marks]);
 
   function requestChange(apply: () => void) {
-    if (isDirty) {
-      setPendingChange(() => apply);
-    } else {
-      apply();
-    }
+    if (isDirty) setPendingChange(() => apply);
+    else apply();
   }
 
-  function handleMark(id: string, mark: AttendanceMark) {
-    setEntries((current) =>
-      current
-        ? current.map((entry) => (entry.id === id ? { ...entry, status: mark } : entry))
-        : current,
-    );
+  function setMark(studentId: string, patch: Partial<Mark>) {
+    setMarks((current) => ({ ...current, [studentId]: { ...{ status: null, note: "" }, ...current[studentId], ...patch } }));
     setIsDirty(true);
   }
 
-  function handleMarkAllPresent() {
-    setEntries((current) =>
-      current ? current.map((entry) => ({ ...entry, status: "present" as const })) : current,
+  function markAllPresent() {
+    setMarks((current) =>
+      Object.fromEntries((data?.students ?? []).map((s) => [s.studentId, { status: "PRESENT" as const, note: current[s.studentId]?.note ?? "" }])),
     );
     setIsDirty(true);
   }
 
   async function handleSave() {
-    setIsSaving(true);
-    // TODO: wire up to the real EduGear "save attendance register" endpoint once the backend is ready.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setIsSaving(false);
-    setRegisterStatus("completed");
-    setSubmittedMeta({ by: "You", at: formatNow() });
-    setIsEditing(false);
-    setIsDirty(false);
-    setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
-    pendingChange?.();
-    setPendingChange(null);
+    if (!data) return;
+    setSaveError(null);
+    const entries = data.students.flatMap((s) => {
+      const mark = marks[s.studentId];
+      if (!mark?.status) return [];
+      const note = mark.status === "PRESENT" ? null : mark.note.trim() || null;
+      return [{ studentId: s.studentId, status: mark.status, note }];
+    });
+    if (entries.length === 0) {
+      setSaveError("Mark at least one student before saving.");
+      return;
+    }
+    try {
+      await save.mutateAsync({ classArmId: data.classArmId, date, entries });
+      setToast(`Attendance recorded for ${data.className} on ${formatDate(date)}.`);
+      setTimeout(() => setToast(null), 3000);
+      pendingChange?.();
+      setPendingChange(null);
+    } catch (err) {
+      setSaveError(errorMessage(err));
+    }
   }
 
   function handleDiscard() {
+    if (data) setMarks(marksFrom(data));
+    setIsDirty(false);
+    setIsEditing(!!data && !data.taken && data.canEdit);
     pendingChange?.();
     setPendingChange(null);
-    setIsDirty(false);
   }
-
-  const presentCount = entries?.filter((e) => e.status === "present").length ?? 0;
-  const absentCount = entries?.filter((e) => e.status === "absent").length ?? 0;
-  const lateCount = entries?.filter((e) => e.status === "late").length ?? 0;
-  const excusedCount = entries?.filter((e) => e.status === "excused").length ?? 0;
 
   return (
     <div>
@@ -175,261 +187,215 @@ export function AttendanceRegisterView() {
             <span className="text-primary-navy">Academics</span> / Operations
           </p>
           <h1 className="mt-1 text-2xl font-bold text-primary-navy">Attendance</h1>
-          <p className="mt-1 text-sm text-slate-gray">
-            Record and monitor student attendance across your classes.
-          </p>
+          <p className="mt-1 text-sm text-slate-gray">Record and monitor student attendance across your classes.</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" className="w-auto px-4 py-2.5">
-            <Download className="h-4 w-4" />
-            Export
+        {editable && (
+          <Button type="button" onClick={handleSave} isLoading={save.isPending} disabled={!isDirty} className="w-auto px-4 py-2.5">
+            <Save className="h-4 w-4" />
+            Save Attendance
           </Button>
-          {canEdit && (
-            <Button
-              type="button"
-              onClick={handleSave}
-              isLoading={isSaving}
-              disabled={!entries}
-              className="w-auto px-4 py-2.5"
-            >
-              <Save className="h-4 w-4" />
-              Save Attendance
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {pendingChange && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="mt-4 flex animate-fade-in flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
             <div>
               <p className="text-sm font-semibold text-primary-navy">Unsaved Changes Detected</p>
               <p className="text-xs text-slate-gray">
-                You have modified the register for {className || "this class"}
-                {arm ? ` Arm ${arm}` : ""}. Do you want to save or discard before viewing your new
-                selection?
+                You have changed the register for {data?.className ?? "this class"}. Save or discard before viewing your new selection?
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-auto px-3 py-2"
-              onClick={handleDiscard}
-            >
+            <Button type="button" variant="secondary" className="w-auto px-3 py-2" onClick={handleDiscard}>
               Discard
             </Button>
-            <Button
-              type="button"
-              variant="danger"
-              className="w-auto px-3 py-2"
-              onClick={handleSave}
-              isLoading={isSaving}
-            >
+            <Button type="button" variant="danger" className="w-auto px-3 py-2" onClick={handleSave} isLoading={save.isPending}>
               Save Changes
             </Button>
           </div>
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-xl">
         <Select
-          value={session}
+          className="w-full"
+          value={classArmId}
           onChange={(e) => {
             const next = e.target.value;
-            requestChange(() => setSession(next));
+            requestChange(() => setPickedArm(next));
           }}
+          aria-label="Class and arm"
         >
-          {SESSION_OPTIONS_ATTENDANCE.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </Select>
-        <Select
-          value={term}
-          onChange={(e) => {
-            const next = e.target.value;
-            requestChange(() => setTerm(next));
-          }}
-        >
-          {TERM_OPTIONS_ATTENDANCE.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </Select>
-        <Select
-          value={className}
-          onChange={(e) => {
-            const next = e.target.value;
-            requestChange(() => setClassName(next));
-          }}
-        >
-          <option value="" disabled>
-            Select Class
-          </option>
-          {CLASS_OPTIONS_ATTENDANCE.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </Select>
-        <Select
-          value={arm}
-          onChange={(e) => {
-            const next = e.target.value;
-            requestChange(() => setArm(next));
-          }}
-        >
-          <option value="" disabled>
-            Select Arm
-          </option>
-          {ARM_OPTIONS_ATTENDANCE.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
+          <ArmOptions emptyLabel="Select class and arm" />
         </Select>
         <Input
           type="date"
           value={date}
+          max={todayInput()}
           onChange={(e) => {
             const next = e.target.value;
-            requestChange(() => setDate(next));
+            if (next) requestChange(() => setPickedDate(next));
           }}
+          aria-label="Date"
         />
       </div>
 
-      {registerStatus === "none" ? (
+      {!classArmId ? (
         <div className="mt-6 rounded-xl border border-dashed border-slate-gray/20 bg-white p-10 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-cloud-sky text-bright-blue">
             <CalendarX className="h-6 w-6" />
           </div>
           <p className="mt-4 text-sm font-semibold text-primary-navy">No Register Selected</p>
-          <p className="mx-auto mt-1 max-w-sm text-xs text-slate-gray">
-            Please select a class and arm from the controls above to start recording attendance.
-          </p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-slate-gray">Select a class and arm above to start recording attendance.</p>
         </div>
-      ) : (
+      ) : register.isPending ? (
+        <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-10 text-center text-sm text-slate-gray">
+          <LoadingText label="Loading register..." />
+        </div>
+      ) : register.isError ? (
+        <div className="mt-6 rounded-xl border border-slate-gray/10 bg-white p-10 text-center text-sm text-slate-gray">
+          {errorMessage(register.error)}
+          <RetryButton onRetry={() => register.refetch()} />
+        </div>
+      ) : data ? (
         <div className="mt-6 space-y-4">
-          <div className="rounded-xl border border-slate-gray/10 bg-white">
+          <p className="text-sm text-slate-gray">
+            <span className="font-semibold text-primary-navy">{data.className}</span> · {formatDate(date)}
+            {data.termName ? ` · ${data.termName.charAt(0) + data.termName.slice(1).toLowerCase()} Term` : ""}
+          </p>
+
+          {!data.canEdit && (
+            <div className="flex items-start gap-2.5 rounded-lg bg-slate-gray/5 p-3 text-sm text-slate-gray">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+              {lockedReason(data, date, currentTerm.data)}
+            </div>
+          )}
+
+          <div className="overflow-x-auto rounded-xl border border-slate-gray/10 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-gray/10 p-4">
               <div className="min-w-[240px] flex-1">
-                <Input
-                  icon={Search}
-                  placeholder="Search student name or ID..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="py-2.5"
-                />
+                <Input icon={Search} placeholder="Search student name or admission no..." value={search} onChange={(e) => setSearch(e.target.value)} className="py-2.5" />
               </div>
               <div className="flex items-center gap-2">
-                {registerStatus === "completed" && (
-                  <span className="rounded-full bg-cloud-sky px-3 py-1 text-xs font-semibold text-bright-blue">
-                    Completed
-                  </span>
+                {data.taken && (
+                  <span className="rounded-full bg-cloud-sky px-3 py-1 text-xs font-semibold text-bright-blue">Completed</span>
                 )}
-                {registerStatus === "completed" && !isEditing ? (
-                  <Button
-                    type="button"
-                    variant="tonal"
-                    className="w-auto px-3 py-2"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit Attendance
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="tonal"
-                    className="w-auto px-3 py-2"
-                    onClick={handleMarkAllPresent}
-                  >
-                    Mark All Present
-                  </Button>
-                )}
+                {data.canEdit &&
+                  (isEditing ? (
+                    <Button type="button" variant="tonal" className="w-auto px-3 py-2" onClick={markAllPresent} disabled={data.students.length === 0}>
+                      Mark All Present
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="tonal" className="w-auto px-3 py-2" onClick={() => setIsEditing(true)}>
+                      <Pencil className="h-4 w-4" />
+                      Edit Attendance
+                    </Button>
+                  ))}
               </div>
             </div>
 
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray">
                   <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Student ID</th>
+                  <th className="px-4 py-3">Admission No.</th>
                   <th className="px-4 py-3">Previous Day</th>
                   <th className="px-4 py-3">Attendance Status</th>
+                  <th className="px-4 py-3">Note</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredEntries.length === 0 ? (
+                {data.students.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-gray">
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-gray">
+                      No active students in {data.className} yet.
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-gray">
                       No students match your search.
                     </td>
                   </tr>
                 ) : (
-                  filteredEntries.map((entry) => (
-                    <tr key={entry.id} className="border-b border-slate-gray/10 last:border-0">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-primary-navy">{entry.name}</p>
-                        <p className="text-xs text-slate-gray">{entry.gender}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-gray">{entry.displayId}</td>
-                      <td className="px-4 py-3 text-slate-gray">
-                        {entry.previousDayStatus ? MARK_LABEL[entry.previousDayStatus] : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <AttendanceMarkToggle
-                          value={entry.status}
-                          onChange={(mark) => handleMark(entry.id, mark)}
-                          disabled={!canEdit}
-                        />
-                      </td>
-                    </tr>
-                  ))
+                  rows.map((s) => {
+                    const mark = marks[s.studentId] ?? { status: null, note: "" };
+                    const prev = previousMarks.get(s.studentId);
+                    return (
+                      <tr key={s.studentId} className="border-b border-slate-gray/10 last:border-0">
+                        <td className="px-4 py-3 font-semibold text-primary-navy">{s.studentName}</td>
+                        <td className="px-4 py-3 text-slate-gray">{s.admissionNumber}</td>
+                        <td className="px-4 py-3 text-slate-gray">{prev ? MARK_LABEL[prev] : "—"}</td>
+                        <td className="px-4 py-3">
+                          <AttendanceMarkToggle value={mark.status} onChange={(status) => setMark(s.studentId, { status })} disabled={!editable} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {mark.status && mark.status !== "PRESENT" ? (
+                            editable ? (
+                              <input
+                                value={mark.note}
+                                maxLength={255}
+                                onChange={(e) => setMark(s.studentId, { note: e.target.value })}
+                                placeholder="Reason (optional)"
+                                aria-label={`Note for ${s.studentName}`}
+                                className="w-full min-w-40 rounded-md border border-slate-gray/20 px-2 py-1.5 text-xs text-primary-navy focus:border-bright-blue focus:outline-none"
+                              />
+                            ) : (
+                              <span className="text-xs text-slate-gray">{mark.note || "—"}</span>
+                            )
+                          ) : (
+                            <span className="text-xs text-slate-gray">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
 
-            {registerStatus === "completed" && (
+            {data.students.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-gray/10 px-4 py-3 text-sm">
                 <p className="text-slate-gray">
-                  <span className="font-semibold text-green-700">{presentCount} Present</span> ·{" "}
-                  <span className="font-semibold text-red-600">{absentCount} Absent</span> ·{" "}
-                  <span className="font-semibold text-amber-600">{lateCount} Late</span>
-                  {excusedCount > 0 && (
-                    <>
-                      {" "}
-                      ·{" "}
-                      <span className="font-semibold text-bright-blue">
-                        {excusedCount} Excused
-                      </span>
-                    </>
-                  )}
+                  <span className="font-semibold text-green-700">{counts.PRESENT} Present</span> ·{" "}
+                  <span className="font-semibold text-red-600">{counts.ABSENT} Absent</span> ·{" "}
+                  <span className="font-semibold text-amber-600">{counts.LATE} Late</span> ·{" "}
+                  <span className="font-semibold text-bright-blue">{counts.EXCUSED} Excused</span>
+                  {counts.unmarked > 0 && <span className="text-slate-gray"> · {counts.unmarked} not marked</span>}
                 </p>
-                {submittedMeta && (
-                  <p className="text-xs text-slate-gray">
-                    Submitted by {submittedMeta.by} at {submittedMeta.at}
-                  </p>
-                )}
+                {data.taken && !isDirty && <p className="text-xs text-slate-gray">Register taken for this day.</p>}
               </div>
             )}
           </div>
 
+          {saveError && <FormError message={saveError} />}
+          {editable && counts.unmarked > 0 && isDirty && (
+            <p className="text-xs text-amber-700">
+              {counts.unmarked} student{counts.unmarked === 1 ? " is" : "s are"} not marked; they&apos;ll stay unmarked if you save now.
+            </p>
+          )}
+
           <div className="flex items-start gap-3 rounded-xl border border-slate-gray/10 bg-cloud-sky/20 p-4">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-bright-blue" />
             <div>
-              <p className="text-sm font-semibold text-primary-navy">Daily Tip</p>
+              <p className="text-sm font-semibold text-primary-navy">How registers work</p>
               <p className="text-xs text-slate-gray">
-                Attendance records are locked 48 hours after the operational date. Contact
-                personnel for historical edits.
+                Each arm&apos;s form teacher (or an administrator) takes its register, for school days inside a term and never
+                for a future date. A taken register can be amended the same way.
               </p>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {showSuccessToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-primary-navy px-4 py-3 text-sm font-semibold text-white shadow-xl">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex animate-dialog-in items-center gap-2 rounded-xl bg-primary-navy px-4 py-3 text-sm font-semibold text-white shadow-xl">
           <CheckCircle2 className="h-4 w-4 text-green-400" />
-          Attendance recorded successfully for {className} Arm {arm}.
+          {toast}
         </div>
       )}
     </div>
