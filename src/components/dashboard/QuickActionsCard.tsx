@@ -7,10 +7,13 @@ const ACTIONS = [
   { label: "Add Student", icon: UserPlus, href: "/students/new" },
   { label: "Record Payment", icon: Receipt, href: "/finance?tab=payments&record=1" },
   { label: "Announce", icon: Megaphone, href: null },
-  { label: "Enter Results", icon: PencilLine, href: null },
+  { label: "Enter Results", icon: PencilLine, href: "/results" },
 ];
 
-const FREQUENTLY_USED = ["Generate Termly Reports", "Export Staff Payroll"];
+const FREQUENTLY_USED = [
+  { label: "Generate Termly Reports", href: "/results?tab=sheets" },
+  { label: "Export Staff Payroll", href: null },
+];
 
 function SoonBadge() {
   return (
@@ -21,12 +24,10 @@ function SoonBadge() {
 }
 
 /**
- * "Quick Actions" card. "Add Student" and "Record Payment" (straight into the Finance
- * record-payment form) are real. The rest render as disabled "Coming Soon" tiles, same
- * treatment as the Academics hub's Gradebook card, rather than buttons that do nothing:
+ * "Quick Actions" card. Add Student, Record Payment (straight into the Finance
+ * record-payment form), Enter Results and Generate Termly Reports (Result Sheets) are real.
+ * The rest render as disabled "Coming Soon" tiles rather than buttons that do nothing:
  * - Announce: the backend has no announcements endpoint yet.
- * - Enter Results / Generate Termly Reports: the backend supports results and report
- *   cards, but the Results screens aren't built yet.
  * - Export Staff Payroll: payroll doesn't exist in the backend.
  */
 export function QuickActionsCard() {
@@ -67,20 +68,31 @@ export function QuickActionsCard() {
         Frequently Used
       </p>
       <div className="mt-2 space-y-1.5">
-        {FREQUENTLY_USED.map((item) => (
-          <div
-            key={item}
-            aria-disabled="true"
-            title="Coming soon"
-            className="flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-slate-gray/10 px-3 py-2 text-xs font-medium text-slate-gray opacity-60"
-          >
-            {item}
-            <span className="flex items-center gap-1.5">
-              <SoonBadge />
-              <ChevronRight className="h-3.5 w-3.5" />
-            </span>
-          </div>
-        ))}
+        {FREQUENTLY_USED.map((item) =>
+          item.href ? (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="flex w-full items-center justify-between rounded-lg border border-slate-gray/10 px-3 py-2 text-left text-xs font-medium text-primary-navy hover:bg-cloud-sky/40"
+            >
+              {item.label}
+              <ChevronRight className="h-3.5 w-3.5 text-slate-gray" />
+            </Link>
+          ) : (
+            <div
+              key={item.label}
+              aria-disabled="true"
+              title="Coming soon"
+              className="flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-slate-gray/10 px-3 py-2 text-xs font-medium text-slate-gray opacity-60"
+            >
+              {item.label}
+              <span className="flex items-center gap-1.5">
+                <SoonBadge />
+                <ChevronRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          ),
+        )}
       </div>
     </div>
   );

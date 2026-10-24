@@ -45,7 +45,7 @@ const ACADEMICS_MODULES: AcademicsModule[] = [
     title: "Gradebook & Results",
     description: "Score entry, computation, grading, and report cards.",
     icon: PencilLine,
-    href: null,
+    href: "/results",
   },
 ];
 
@@ -55,10 +55,8 @@ const ACADEMICS_MODULES: AcademicsModule[] = [
  * first built), so this is put together directly from the Academics
  * screens that already exist, following the same "build what's left
  * ourselves once the Stitch pass concludes" plan already agreed for gaps
- * like this. Each card links to a real screen except "Gradebook &
- * Results," which has no design or build yet and renders as a disabled
- * "Coming Soon" tile instead of a link, same treatment as other
- * undesigned areas elsewhere (e.g. the Student Profile's own unbuilt tabs).
+ * like this. Every card links to a real screen; a card with href: null would
+ * render as a disabled "Coming Soon" tile instead.
  */
 export function AcademicsHubView() {
   return (

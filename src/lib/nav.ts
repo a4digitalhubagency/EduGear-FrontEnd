@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ClipboardList,
   GraduationCap,
   LayoutDashboard,
   Settings as SettingsIcon,
@@ -27,6 +28,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Students", href: "/students", icon: Users },
   { label: "Academics", href: "/academics", icon: GraduationCap },
+  // Results is top-level, as in the Information Architecture's main sidebar.
+  { label: "Results", href: "/results", icon: ClipboardList },
   { label: "Finance", href: "/finance", icon: Wallet },
   { label: "Personnel", href: "/personnel", icon: UserCog },
   { label: "Settings", href: "/settings", icon: SettingsIcon },

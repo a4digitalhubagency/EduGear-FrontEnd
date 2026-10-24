@@ -140,4 +140,18 @@ body {
   .no-print {
     display: none !important;
   }
+  /*
+   * A printable area inside a modal: the modal is fixed and scrolls, which browsers print as
+   * one clipped (or repeated) page. Unfix and unclip it so long content, like a whole
+   * class's report cards, flows across pages.
+   */
+  [role="dialog"],
+  [role="dialog"] * {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .print-area {
+    position: absolute !important;
+  }
 }
