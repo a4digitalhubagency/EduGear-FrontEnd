@@ -33,6 +33,67 @@ html {
   --color-cloud-sky: var(--color-cloud-sky);
 }
 
+/*
+ * Motion. Each becomes a Tailwind class (animate-fade-in, animate-dialog-in, ...).
+ * Short and subtle on purpose: they confirm what happened, they don't perform.
+ * "both"/"backwards" keep the start state during a delay, so staggered items don't flash in early.
+ *
+ * fade-in-up is "backwards", not "both": a leftover transform (even translateY(0)) makes the
+ * element the containing block for position:fixed children, so every modal inside a page
+ * would be trapped in that page instead of covering the screen. "backwards" drops it after.
+ */
+@theme {
+  --animate-fade-in: fade-in 180ms ease-out both;
+  --animate-fade-in-up: fade-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  --animate-dialog-in: dialog-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-dropdown-in: dropdown-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-grow-x: grow-x 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-grow-y: grow-y 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-ring-fill: ring-fill 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  /* Bars fill from their start edge; pair with origin-left / origin-bottom. */
+  @keyframes grow-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes grow-y {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+  /* Progress ring: draws from empty to the stroke-dashoffset set on the element. */
+  @keyframes ring-fill {
+    from { stroke-dashoffset: var(--ring-empty); }
+  }
+}
+
+/* People who ask their OS for less motion get none (accessibility, and motion sickness). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -50,7 +111,33 @@ body {
   box-sizing: border-box;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * In the base layer, not bare: Tailwind v4 utilities live in a cascade layer, and
+ * un-layered CSS beats every layer regardless of specificity, so a bare `a` rule
+ * was overriding text-white / text-bright-blue on every link.
+ */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* Printing a receipt prints only the element marked .print-area, not the app around it. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    padding: 24px;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

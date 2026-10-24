@@ -1,14 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LifeBuoy, LogOut, Plus } from "lucide-react";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { LifeBuoy, Loader2, LogOut, Plus } from "lucide-react";
 import { EduGearLogo } from "@/components/EduGearLogo";
+import { logout } from "@/lib/auth-actions";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/nav";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleLogout() {
+    setSigningOut(true);
+    // logout() never throws: it clears the session locally even if the server call fails.
+    await logout();
+    router.replace("/login");
+  }
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-slate-gray/10 bg-white">
       <div className="px-5 pb-4 pt-5">
@@ -43,9 +54,14 @@ export function Sidebar() {
           <LifeBuoy className="h-4 w-4" />
           Support
         </Link>
-        <button type="button" className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-gray hover:bg-red-50 hover:text-red-600">
-          <LogOut className="h-4 w-4" />
-          Log Out
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={signingOut}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-gray hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+        >
+          {signingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+          {signingOut ? "Signing out..." : "Log Out"}
         </button>
       </div>
     </aside>

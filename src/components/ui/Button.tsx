@@ -23,7 +23,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          "inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bright-blue focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
+          // active:scale: a small press so clicks feel registered, even before the network answers.
+          "inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bright-blue focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
           variant === "primary" &&
             "bg-primary-navy text-white hover:bg-primary-navy/90",
           variant === "secondary" &&

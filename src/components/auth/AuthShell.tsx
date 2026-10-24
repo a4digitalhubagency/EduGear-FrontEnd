@@ -28,7 +28,7 @@ export function AuthShell({
       <div className="relative hidden w-1/2 flex-col justify-between bg-primary-navy px-12 py-12 text-white lg:flex">
         <EduGearLogo variant="outline" />
 
-        <div className="max-w-md">
+        <div className="max-w-md animate-fade-in-up">
           <h1 className="text-3xl font-bold leading-tight text-balance">
             {headline}
           </h1>
@@ -44,7 +44,8 @@ export function AuthShell({
 
       {/* Right form panel */}
       <div className="flex w-full flex-1 items-center justify-center bg-white px-6 py-12 lg:w-1/2">
-        <div className="w-full max-w-sm">{children}</div>
+        {/* The form follows the headline by a beat. */}
+        <div className="w-full max-w-sm animate-fade-in-up [animation-delay:120ms]">{children}</div>
       </div>
     </div>
   );

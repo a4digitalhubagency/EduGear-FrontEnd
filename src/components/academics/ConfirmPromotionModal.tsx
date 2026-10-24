@@ -32,8 +32,8 @@ export function ConfirmPromotionModal({
   onConfirm,
 }: ConfirmPromotionModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-navy/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 animate-fade-in flex items-center justify-center bg-primary-navy/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl animate-dialog-in">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
