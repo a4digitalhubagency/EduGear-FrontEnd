@@ -50,3 +50,18 @@ export async function postToBackend(path: string, body: unknown): Promise<Respon
 export async function readJson(res: Response): Promise<any | null> { // eslint-disable-line @typescript-eslint/no-explicit-any
   return res.json().catch(() => null);
 }
+
+// A4 platform console. Its access token lives in an httpOnly cookie scoped to the platform
+// proxy, so page JavaScript never holds it. Platform sessions can't be refreshed (the backend's
+// refresh needs a school), so the cookie lasts exactly as long as the token: then sign in again.
+export const PLATFORM_COOKIE = "edugear_platform";
+
+export function platformCookieOptions(maxAgeSeconds: number) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    path: "/api/platform",
+    maxAge: maxAgeSeconds,
+  };
+}
