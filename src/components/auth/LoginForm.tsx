@@ -133,13 +133,13 @@ export function LoginForm() {
       </p>
 
       <div className="mt-8 flex items-center justify-center gap-4 border-t border-slate-gray/10 pt-6 text-xs text-slate-gray">
-        <a href="/support" className="hover:text-primary-navy">
+        <a href="mailto:support@edugear.ng" className="hover:text-primary-navy">
           Support
         </a>
         <span aria-hidden>&middot;</span>
-        <a href="/privacy" className="hover:text-primary-navy">
+        <Link href="/privacy" className="hover:text-primary-navy">
           Privacy
-        </a>
+        </Link>
       </div>
     </div>
   );

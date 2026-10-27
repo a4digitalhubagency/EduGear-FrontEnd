@@ -107,6 +107,13 @@ export function RegisterSchoolForm() {
           })}
         </ul>
 
+        <p className="text-xs text-slate-gray">
+          By creating an account you agree to how we handle data, as set out in our{" "}
+          <Link href="/privacy" target="_blank" className="font-semibold text-bright-blue hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
         <FormError message={error} />
         <Button type="submit" isLoading={isSubmitting}>
           {isSubmitting ? "Creating your school..." : "Create School Account"}
