@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
   const data = await readJson(backendRes);
   if (!data) return backendUnreachable();
 
-  if (backendRes.status >= 500) {
-    // Backend error, not a verdict on the token. Pass it through and keep the cookie.
+  if (backendRes.status >= 500 || backendRes.status === 429) {
+    // A backend error or rate limit, not a verdict on the token. Pass it through and keep the
+    // cookie, or a few quick reloads would sign the user out.
     return NextResponse.json(data, { status: backendRes.status });
   }
 
