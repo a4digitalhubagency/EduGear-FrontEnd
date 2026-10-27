@@ -1,9 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, jsonBody } from "@/lib/api-client";
+import { api, jsonBody, toQueryString } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/store/auth-store";
-import type { PermissionInfo, Role, School, SchoolSettings, UpdateSchoolInput, UpdateSchoolSettingsInput } from "@/types/school";
+import type { Paginated } from "@/types/api";
+import type {
+  CreateRoleInput, FilePurpose, PermissionInfo, Role, School, SchoolSettings, StorageQuota, StoredFile, UpdateSchoolInput, UpdateSchoolSettingsInput,
+} from "@/types/school";
 
 export const schoolKeys = {
   all: ["school"] as const,
@@ -74,5 +77,74 @@ export function useUpdateSchoolSettings() {
     mutationFn: (input: UpdateSchoolSettingsInput) =>
       api<SchoolSettings>("/schools/me/settings", jsonBody("PATCH", input)),
     onSuccess: (settings) => queryClient.setQueryData(schoolKeys.settings(), settings),
+  });
+}
+
+// --- Roles (roles.update) ---------------------------------------------------
+
+/** Role changes can rename what staff rows show, so both the roles list and staff refetch. */
+function useRoleMutation<TVars, TResult>(mutationFn: (vars: TVars) => Promise<TResult>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: schoolKeys.roles() });
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+/** You can only grant permissions you hold yourself; the backend names any you don't. */
+export function useCreateRole() {
+  return useRoleMutation((input: CreateRoleInput) => api<Role>("/schools/me/roles", jsonBody("POST", input)));
+}
+
+/** Rename or re-describe. Standard (system) roles keep their names. */
+export function useUpdateRole() {
+  return useRoleMutation(({ id, input }: { id: string; input: { name?: string; description?: string | null } }) =>
+    api<Role>(`/schools/me/roles/${id}`, jsonBody("PATCH", input)),
+  );
+}
+
+/** The complete set after the change, not a delta. The proprietor role can't be changed. */
+export function useSetRolePermissions() {
+  return useRoleMutation(({ id, permissions }: { id: string; permissions: string[] }) =>
+    api<Role>(`/schools/me/roles/${id}/permissions`, jsonBody("PUT", { permissions })),
+  );
+}
+
+/** Empties a role before it can be deleted. */
+export function useReassignRoleMembers() {
+  return useRoleMutation(({ id, toRoleId }: { id: string; toRoleId: string }) =>
+    api<{ moved: number }>(`/schools/me/roles/${id}/reassign-members`, jsonBody("POST", { toRoleId })),
+  );
+}
+
+/** Custom roles nobody holds. */
+export function useDeleteRole() {
+  return useRoleMutation((id: string) => api<void>(`/schools/me/roles/${id}`, { method: "DELETE" }));
+}
+
+// --- File storage -----------------------------------------------------------
+
+export function useStorageQuota(enabled = true) {
+  return useQuery({ queryKey: [...schoolKeys.all, "storage"], queryFn: () => api<StorageQuota>("/files/quota"), enabled });
+}
+
+/** One kind of file (the backend requires a purpose). The first 100 is plenty for a clean-up list. */
+export function useSchoolFiles(purpose: FilePurpose, enabled = true) {
+  return useQuery({
+    queryKey: [...schoolKeys.all, "files", purpose],
+    queryFn: () => api<Paginated<StoredFile>>(`/files${toQueryString({ purpose, limit: 100 })}`),
+    enabled,
+  });
+}
+
+/** Payment evidence can't be deleted; the backend says so. */
+export function useDeleteFile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/files/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: schoolKeys.all }),
   });
 }

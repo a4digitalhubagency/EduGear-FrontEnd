@@ -62,3 +62,24 @@ export type Role = {
 
 /** GET /schools/me/permissions row. */
 export type PermissionInfo = { key: string; group: string; description: string };
+
+/** POST /schools/me/roles. Start empty, from a list, or copy another role's permissions. */
+export type CreateRoleInput = { name: string; description?: string | null; permissions?: string[]; copyFromRoleId?: string };
+
+/** GET /files/quota. The ceiling is set by EduGear, not the school. */
+export type StorageQuota = { usedBytes: number; limitBytes: number; remainingBytes: number; percentUsed: number };
+
+export type FilePurpose = "STUDENT_PHOTO" | "SCHOOL_LOGO" | "PAYMENT_EVIDENCE";
+
+/** GET /files row. linkedType/linkedId say what's using it; null means nothing is. */
+export type StoredFile = {
+  id: string;
+  purpose: FilePurpose;
+  url: string;
+  displayName: string;
+  contentType: string;
+  sizeBytes: number;
+  linkedType: string | null;
+  linkedId: string | null;
+  createdAt: string;
+};

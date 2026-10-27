@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { SchoolPreferencesForm } from "@/components/settings/SchoolPreferencesForm";
 import { SchoolProfileForm } from "@/components/settings/SchoolProfileForm";
+import { StorageSettings } from "@/components/settings/StorageSettings";
 import { LoadingText, PageHeader, RetryButton, Tabs } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api-client";
 import { useSchool, useSchoolSettings } from "@/lib/queries/school";
 import { useCan } from "@/lib/store/auth-store";
 
-const SETTINGS_TABS = ["School Profile", "Preferences"] as const;
+const SETTINGS_TABS = ["School Profile", "Preferences", "Storage"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 function StateCard({ children }: { children: React.ReactNode }) {
@@ -45,7 +46,9 @@ export function SettingsView() {
         <>
           <Tabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} />
           <div className="mt-6">
-            {query.isPending ? (
+            {tab === "Storage" ? (
+              <StorageSettings canUpdate={canUpdate} />
+            ) : query.isPending ? (
               <StateCard>
                 <LoadingText label="Loading..." />
               </StateCard>

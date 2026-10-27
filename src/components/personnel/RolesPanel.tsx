@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, ShieldCheck, Users } from "lucide-react";
-import { LoadingText, Pill, RetryButton } from "@/components/ui/table";
+import { ChevronDown, ChevronUp, Pencil, Plus, ShieldCheck, SlidersHorizontal, Trash2, Users } from "lucide-react";
+import { DeleteRoleModal, RoleFormModal, RolePermissionsModal, groupLabel } from "@/components/personnel/RoleModals";
+import { Button } from "@/components/ui/Button";
+import { IconAction, LoadingText, Pill, RetryButton } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api-client";
 import { usePermissionCatalogue, useRoles } from "@/lib/queries/school";
 import { useCan } from "@/lib/store/auth-store";
@@ -16,10 +18,19 @@ function StateCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** "users" -> "Users", "school" -> "School". */
-const groupLabel = (group: string) => group.charAt(0).toUpperCase() + group.slice(1).replaceAll("_", " ");
+type RoleAction = { kind: "edit" | "permissions" | "delete"; role: Role };
 
-function RoleCard({ role, catalogue }: { role: Role; catalogue: Map<string, PermissionInfo> }) {
+function RoleCard({
+  role,
+  catalogue,
+  onAction,
+}: {
+  role: Role;
+  catalogue: Map<string, PermissionInfo>;
+  onAction: ((action: RoleAction) => void) | null;
+}) {
+  // The proprietor role always holds everything (the backend refuses changes): it's how a school recovers.
+  const locked = role.slug === "PROPRIETOR";
   const [open, setOpen] = useState(false);
 
   // Group the role's permissions by catalogue area, e.g. Students: view, create...
@@ -56,6 +67,13 @@ function RoleCard({ role, catalogue }: { role: Role; catalogue: Map<string, Perm
             </p>
           </div>
         </div>
+        {onAction && (
+          <div className="flex shrink-0 items-center gap-1">
+            {!locked && <IconAction icon={SlidersHorizontal} label="Edit permissions" onClick={() => onAction({ kind: "permissions", role })} />}
+            <IconAction icon={Pencil} label="Rename or describe" onClick={() => onAction({ kind: "edit", role })} />
+            {!role.isSystem && <IconAction icon={Trash2} label="Delete role" tone="danger" onClick={() => onAction({ kind: "delete", role })} />}
+          </div>
+        )}
       </div>
 
       <button
@@ -94,11 +112,15 @@ function RoleCard({ role, catalogue }: { role: Role; catalogue: Map<string, Perm
 
 /**
  * Roles tab: each role with its member count and what it allows, in plain language from
- * the permission catalogue. View-only for now; changing a role's permissions affects
- * everyone holding it at once, so editing is held back until it's been agreed.
+ * the permission catalogue. With roles.update: create custom roles, edit permissions
+ * (applies to everyone holding the role at once), rename custom roles, and delete them
+ * (moving their members elsewhere first). Standard roles can't be renamed or deleted,
+ * and the Proprietor role always keeps every permission.
  */
 export function RolesPanel() {
   const canRead = useCan("roles.read");
+  const canUpdate = useCan("roles.update");
+  const [action, setAction] = useState<RoleAction | { kind: "create" } | null>(null);
   const roles = useRoles(canRead);
   const catalogue = usePermissionCatalogue(canRead);
 
@@ -131,15 +153,32 @@ export function RolesPanel() {
 
   return (
     <div>
-      <p className="text-sm text-slate-gray">
-        What each role can do. Changes to a role apply to everyone who holds it, and can take up to 30 seconds to
-        reach them.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-gray">What each role can do. Changes to a role apply to everyone who holds it, straight away.</p>
+        {canUpdate && (
+          <Button type="button" variant="tonal" className="w-auto px-3 py-2" onClick={() => setAction({ kind: "create" })}>
+            <Plus className="h-4 w-4" />
+            New Role
+          </Button>
+        )}
+      </div>
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {roles.data.map((role) => (
-          <RoleCard key={role.id} role={role} catalogue={catalogueByKey} />
+          <RoleCard key={role.id} role={role} catalogue={catalogueByKey} onAction={canUpdate ? setAction : null} />
         ))}
       </div>
+
+      {action?.kind === "create" && (
+        <RoleFormModal
+          roles={roles.data}
+          onClose={() => setAction(null)}
+          // Straight on to choosing what the new role can do.
+          onCreated={(role) => setAction({ kind: "permissions", role })}
+        />
+      )}
+      {action?.kind === "edit" && <RoleFormModal role={action.role} roles={roles.data} onClose={() => setAction(null)} />}
+      {action?.kind === "permissions" && <RolePermissionsModal role={action.role} catalogue={catalogue.data} onClose={() => setAction(null)} />}
+      {action?.kind === "delete" && <DeleteRoleModal role={action.role} roles={roles.data} onClose={() => setAction(null)} />}
     </div>
   );
 }
