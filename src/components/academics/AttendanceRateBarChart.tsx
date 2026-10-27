@@ -35,13 +35,13 @@ export function AttendanceRateBarChart({
 
   return (
     <div>
-      <div className={`flex items-end gap-1 ${heightClassName}`}>
+      <div className={`flex items-end justify-center gap-1 ${heightClassName}`}>
         {points.map((point, index) => {
           const isLow = lowThreshold !== undefined && point.rate <= lowThreshold;
           return (
             <div
               key={`${point.label}-${index}`}
-              className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+              className="flex h-full max-w-16 flex-1 flex-col items-center justify-end gap-1.5"
             >
               <div className="flex w-full flex-1 items-end">
                 <div

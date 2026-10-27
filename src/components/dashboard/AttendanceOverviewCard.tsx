@@ -89,9 +89,9 @@ export function AttendanceOverviewCard({ termId, termLabel }: AttendanceOverview
   } else {
     body = (
       <>
-        <div className="mt-6 flex h-40 items-end justify-between gap-3 overflow-x-auto">
+        <div className="mt-6 flex h-40 items-end justify-center gap-3 overflow-x-auto">
           {bars.map((bar, index) => (
-            <div key={bar.arm.id} className="flex min-w-10 flex-1 flex-col items-center gap-2" title={`${bar.arm.fullName}: ${bar.rate}%`}>
+            <div key={bar.arm.id} className="flex min-w-10 max-w-20 flex-1 flex-col items-center gap-2" title={`${bar.arm.fullName}: ${bar.rate}%`}>
               <span className="text-[10px] font-semibold text-primary-navy">{bar.rate}%</span>
               <div className="flex h-28 w-full items-end">
                 <div
