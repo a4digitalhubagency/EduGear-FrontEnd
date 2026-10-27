@@ -6,6 +6,7 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "../ui/Button";
 import { FormError } from "../ui/FormError";
 import { Input, PasswordInput } from "../ui/Input";
+import { ApiError, errorMessage } from "../../lib/api-client";
 
 /** A4 operator sign-in (POST /platform/auth/login). A separate door from school logins on purpose. */
 export function PlatformLoginForm({ expired }: { expired: boolean }) {
@@ -32,7 +33,7 @@ export function PlatformLoginForm({ expired }: { expired: boolean }) {
         if (res.status === 429) return setError("Too many attempts. Please wait a minute and try again.");
         if (data?.errorCode === "ACCOUNT_LOCKED") return setError(data.message ?? "This account is locked for now.");
         if (res.status === 401) return setError("Incorrect email or password, or this account has no platform access.");
-        return setError(data?.message ?? "Sign-in failed. Please try again.");
+        return setError(errorMessage(new ApiError(res.status, data), "Sign-in failed. Please try again."));
       }
       router.replace("/platform");
     } catch {

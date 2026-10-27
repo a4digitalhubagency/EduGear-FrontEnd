@@ -16,7 +16,7 @@ import { useAuthStore } from "../../lib/store/auth-store";
 const UNREACHABLE_MESSAGE = "Can't reach the server. Please try again shortly.";
 
 // Branch on errorCode first: ACCOUNT_LOCKED arrives as a 401 too, so status alone would hide it.
-function loginErrorMessage(status: number, body: { errorCode?: string; message?: string } | null) {
+function loginErrorMessage(status: number, body: { errorCode?: string; message?: string; requestId?: string } | null) {
   if (body?.errorCode === "ACCOUNT_LOCKED") {
     return "Account temporarily locked after too many failed attempts. Try again in 15 minutes.";
   }
@@ -25,7 +25,8 @@ function loginErrorMessage(status: number, body: { errorCode?: string; message?:
   if (status === 401) return "Invalid email or password.";
   // 403s (pending invitation, inactive account, no active school) carry a user-facing message.
   if (status === 403 && body?.message) return body.message;
-  return "Something went wrong. Please try again.";
+  // Unexpected: quote the backend's reference so it can be found in the logs.
+  return body?.requestId ? `Something went wrong. Please try again. (Ref: ${body.requestId.slice(0, 8)})` : "Something went wrong. Please try again.";
 }
 
 /**

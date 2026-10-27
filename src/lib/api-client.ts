@@ -4,12 +4,15 @@ type ErrorBody = {
   errorCode?: string;
   message?: string;
   details?: unknown;
+  requestId?: string;
 };
 
 export class ApiError extends Error {
   readonly status: number;
   readonly errorCode?: string;
   readonly details?: unknown;
+  /** Every backend error carries one; it ties straight to the server logs. */
+  readonly requestId?: string;
 
   constructor(status: number, body: ErrorBody | null) {
     super(body?.message ?? "Request failed.");
@@ -17,6 +20,7 @@ export class ApiError extends Error {
     this.status = status;
     this.errorCode = body?.errorCode;
     this.details = body?.details;
+    this.requestId = body?.requestId;
   }
 }
 
@@ -166,7 +170,10 @@ export function passwordErrorMessage(error: unknown) {
 
 /**
  * A message fit to show the user. Validation failures say "Request validation failed"
- * and carry the real reasons (class-validator strings) in details, so show the first one.
+ * and carry the real reasons (class-validator strings) in details, so show the first one;
+ * those are the user's to fix. Any other backend error ends with "(Ref: 8587b724)", the
+ * start of its requestId, so whoever reports it can quote it and the backend team can find
+ * it in the logs.
  */
 export function errorMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (!(error instanceof ApiError)) return fallback;
@@ -177,5 +184,7 @@ export function errorMessage(error: unknown, fallback = "Something went wrong. P
     const constraint = (first as { constraints?: unknown } | undefined)?.constraints;
     if (Array.isArray(constraint) && typeof constraint[0] === "string") return constraint[0];
   }
-  return error.message;
+  return error.requestId && error.errorCode !== "VALIDATION_ERROR"
+    ? `${error.message} (Ref: ${error.requestId.slice(0, 8)})`
+    : error.message;
 }
