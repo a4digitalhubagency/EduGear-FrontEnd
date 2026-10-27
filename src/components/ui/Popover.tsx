@@ -39,7 +39,7 @@ export function Popover({ trigger, children, align = "right", className }: Popov
       {open && (
         <div
           className={cn(
-            "absolute top-full z-40 mt-2 animate-dropdown-in rounded-xl border border-slate-gray/10 bg-white shadow-xl",
+            "absolute top-full z-40 mt-2 max-w-[calc(100vw-1.5rem)] animate-dropdown-in rounded-xl border border-slate-gray/10 bg-white shadow-xl",
             // Grow out of the corner it's anchored to.
             align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left",
             className,

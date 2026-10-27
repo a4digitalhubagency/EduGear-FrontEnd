@@ -262,7 +262,7 @@ export function ScoreEntryPanel() {
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray">
-                  <th className="px-4 py-3">Student</th>
+                  <th className="sticky left-0 z-10 bg-white shadow-[1px_0_0_rgba(100,116,139,0.12)] px-3 py-3 sm:px-4">Student</th>
                   {data.components.map((c) => (
                     <th key={c.id} className="w-24 px-2 py-3 text-center">
                       {c.name}
@@ -287,7 +287,7 @@ export function ScoreEntryPanel() {
                     const band = anyEntered ? gradeFor(Math.round(total), bands) : null;
                     return (
                       <tr key={s.studentId} className="border-b border-slate-gray/10 last:border-0">
-                        <td className="px-4 py-2">
+                        <td className="sticky left-0 z-10 bg-white shadow-[1px_0_0_rgba(100,116,139,0.12)] max-w-36 px-3 py-2 sm:max-w-none sm:px-4">
                           <p className="font-semibold text-primary-navy">{s.studentName}</p>
                           <p className="text-xs text-slate-gray">{s.admissionNumber}</p>
                         </td>

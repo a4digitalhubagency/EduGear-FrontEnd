@@ -493,6 +493,35 @@ export function AddStudentForm() {
         </div>
       </form>
 
+      {/* Phones and tablets: the form is one long column, so save from the bottom too. */}
+      <div className="mt-6 space-y-3 lg:hidden">
+        {serverError && <FormError message={serverError} />}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="submit"
+            form="add-student-form"
+            isLoading={isSubmitting && pressed === "save"}
+            disabled={isSubmitting}
+            onClick={() => choose("save")}
+            className="sm:w-auto sm:flex-1"
+          >
+            <Save className="h-4 w-4" />
+            Save Student
+          </Button>
+          <Button
+            type="submit"
+            form="add-student-form"
+            variant="tonal"
+            isLoading={isSubmitting && pressed === "another"}
+            disabled={isSubmitting}
+            onClick={() => choose("another")}
+            className="sm:w-auto sm:flex-1"
+          >
+            Save & Add Another
+          </Button>
+        </div>
+      </div>
+
       {saved && (
         <AddStudentSuccessModal
           student={saved.student}

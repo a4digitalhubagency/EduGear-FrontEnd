@@ -55,7 +55,7 @@ export function HeaderSearch() {
 
   return (
     <div
-      className="relative max-w-md flex-1"
+      className="relative min-w-0 max-w-md flex-1"
       onBlur={(e) => {
         // Keep it open while focus moves to a result inside it.
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);

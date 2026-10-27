@@ -159,7 +159,11 @@ export function Tabs<T extends string>({
           type="button"
           role="tab"
           aria-selected={tab === active}
-          onClick={() => onChange(tab)}
+          onClick={(e) => {
+            onChange(tab);
+            // On a phone the row scrolls sideways: bring the chosen tab fully into view.
+            e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+          }}
           className={
             tab === active
               ? "whitespace-nowrap border-b-2 transition-colors duration-200 border-bright-blue pb-3 text-bright-blue"

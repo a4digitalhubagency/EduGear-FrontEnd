@@ -298,14 +298,14 @@ export function AttendanceRegisterView() {
               </div>
             </div>
 
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full text-left text-sm sm:min-w-[720px]">
               <thead>
                 <tr className="border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray">
                   <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Admission No.</th>
-                  <th className="px-4 py-3">Previous Day</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Admission No.</th>
+                  <th className="hidden px-4 py-3 md:table-cell">Previous Day</th>
                   <th className="px-4 py-3">Attendance Status</th>
-                  <th className="px-4 py-3">Note</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,32 +325,34 @@ export function AttendanceRegisterView() {
                   rows.map((s) => {
                     const mark = marks[s.studentId] ?? { status: null, note: "" };
                     const prev = previousMarks.get(s.studentId);
+                    const note =
+                      mark.status && mark.status !== "PRESENT" ? (
+                        editable ? (
+                          <input
+                            value={mark.note}
+                            maxLength={255}
+                            onChange={(e) => setMark(s.studentId, { note: e.target.value })}
+                            placeholder="Reason (optional)"
+                            aria-label={`Note for ${s.studentName}`}
+                            className="w-full min-w-40 rounded-md border border-slate-gray/20 px-2 py-1.5 text-xs text-primary-navy focus:border-bright-blue focus:outline-none"
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-gray">{mark.note || "—"}</span>
+                        )
+                      ) : null;
                     return (
                       <tr key={s.studentId} className="border-b border-slate-gray/10 last:border-0">
-                        <td className="px-4 py-3 font-semibold text-primary-navy">{s.studentName}</td>
-                        <td className="px-4 py-3 text-slate-gray">{s.admissionNumber}</td>
-                        <td className="px-4 py-3 text-slate-gray">{prev ? MARK_LABEL[prev] : "—"}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-primary-navy">{s.studentName}</p>
+                          <p className="text-xs text-slate-gray sm:hidden">{s.admissionNumber}</p>
+                        </td>
+                        <td className="hidden px-4 py-3 text-slate-gray sm:table-cell">{s.admissionNumber}</td>
+                        <td className="hidden px-4 py-3 text-slate-gray md:table-cell">{prev ? MARK_LABEL[prev] : "—"}</td>
                         <td className="px-4 py-3">
                           <AttendanceMarkToggle value={mark.status} onChange={(status) => setMark(s.studentId, { status })} disabled={!editable} />
+                          {note && <div className="mt-2 sm:hidden">{note}</div>}
                         </td>
-                        <td className="px-4 py-3">
-                          {mark.status && mark.status !== "PRESENT" ? (
-                            editable ? (
-                              <input
-                                value={mark.note}
-                                maxLength={255}
-                                onChange={(e) => setMark(s.studentId, { note: e.target.value })}
-                                placeholder="Reason (optional)"
-                                aria-label={`Note for ${s.studentName}`}
-                                className="w-full min-w-40 rounded-md border border-slate-gray/20 px-2 py-1.5 text-xs text-primary-navy focus:border-bright-blue focus:outline-none"
-                              />
-                            ) : (
-                              <span className="text-xs text-slate-gray">{mark.note || "—"}</span>
-                            )
-                          ) : (
-                            <span className="text-xs text-slate-gray">—</span>
-                          )}
-                        </td>
+                        <td className="hidden px-4 py-3 sm:table-cell">{note ?? <span className="text-xs text-slate-gray">—</span>}</td>
                       </tr>
                     );
                   })

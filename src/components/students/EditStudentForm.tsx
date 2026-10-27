@@ -254,6 +254,15 @@ export function EditStudentForm({ student }: { student: StudentProfile }) {
           </section>
         </div>
       </form>
+
+      {/* Phones and tablets: the form is one long column, so save from the bottom too. */}
+      <div className="mt-6 space-y-3 lg:hidden">
+        {serverError && <FormError message={serverError} />}
+        <Button type="submit" form="edit-student-form" isLoading={isSubmitting} disabled={!isDirty}>
+          <Save className="h-4 w-4" />
+          Save Changes
+        </Button>
+      </div>
     </div>
   );
 }
