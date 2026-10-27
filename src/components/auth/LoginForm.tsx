@@ -124,10 +124,11 @@ export function LoginForm() {
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-gray">
-        Don&apos;t have an account?{" "}
-        <a href="mailto:support@edugear.ng" className="font-semibold text-bright-blue hover:underline">
-          Contact your school administrator
-        </a>
+        New school?{" "}
+        <Link href="/register" className="font-semibold text-bright-blue hover:underline">
+          Register your school
+        </Link>
+        <span className="mt-1 block text-xs">Staff and parents: ask your school to invite you.</span>
       </p>
 
       <div className="mt-8 flex items-center justify-center gap-4 border-t border-slate-gray/10 pt-6 text-xs text-slate-gray">
