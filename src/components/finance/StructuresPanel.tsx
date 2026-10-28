@@ -73,7 +73,7 @@ export function StructuresPanel({ sessionId, sessionName }: StructuresPanelProps
               </option>
             ))}
           </Select>
-          <p className="text-sm text-slate-gray">Publish a structure to issue invoices from it.</p>
+          <p className="text-sm text-slate-gray">Publish a structure, then bill a class with &quot;Issue Invoices&quot; on the Invoices tab.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" className="w-auto px-4 py-2.5" onClick={() => setCategoriesOpen(true)}>

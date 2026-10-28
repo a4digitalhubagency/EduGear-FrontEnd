@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
+import { NumberWheelGuard } from "@/components/NumberWheelGuard";
 import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${beVietnamPro.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-primary-navy">
+        <NumberWheelGuard />
         <QueryProvider>
           <AuthBootstrap>{children}</AuthBootstrap>
         </QueryProvider>

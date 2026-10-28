@@ -204,7 +204,8 @@ export function StructureFormModal({ sessionId, sessionName, structure, onClose 
           )}
           <p className="mt-1 text-xs text-slate-gray">
             Optional items (e.g. a bus place) are only billed when ticked while issuing invoices. The total counts
-            compulsory items.
+            compulsory items. Category not listed? Add it with the &quot;Fee Categories&quot; button beside New Fee
+            Structure.
           </p>
         </div>
 
