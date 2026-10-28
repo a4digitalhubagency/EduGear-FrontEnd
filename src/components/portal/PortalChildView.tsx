@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CreditCard, FileText, Receipt as ReceiptIcon, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { PrintArea } from "@/components/ui/PrintArea";
 import { FormError } from "@/components/ui/FormError";
 import { LoadingText, Pill, RetryButton, Tabs } from "@/components/ui/table";
 import { ReceiptModal } from "@/components/finance/ReceiptModal";
@@ -232,9 +233,9 @@ function ResultsTab({ studentId }: { studentId: string }) {
         ) : card.isError ? (
           <FormError message={errorMessage(card.error)} />
         ) : card.data ? (
-          <div className="print-area overflow-hidden rounded-xl border border-slate-gray/10">
+          <PrintArea className="overflow-hidden rounded-xl border border-slate-gray/10">
             <ReportCardView card={card.data} />
-          </div>
+          </PrintArea>
         ) : null}
       </div>
     );

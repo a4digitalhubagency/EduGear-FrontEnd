@@ -124,35 +124,22 @@ body {
   }
 }
 
-/* Printing a receipt prints only the element marked .print-area, not the app around it. */
+/*
+ * Printing prints only the copy that <PrintArea> puts directly under <body> (.print-root),
+ * never the app around it. Outside the app shell and its modals nothing can clip it, and long
+ * content (a class's report cards) flows from page to page.
+ */
+.print-root {
+  display: none;
+}
 @media print {
-  body * {
-    visibility: hidden;
+  body > :not(.print-root) {
+    display: none !important;
   }
-  .print-area,
-  .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    inset: 0;
-    padding: 24px;
+  .print-root {
+    display: block !important;
   }
   .no-print {
     display: none !important;
-  }
-  /*
-   * A printable area inside a modal: the modal is fixed and scrolls, which browsers print as
-   * one clipped (or repeated) page. Unfix and unclip it so long content, like a whole
-   * class's report cards, flows across pages.
-   */
-  [role="dialog"],
-  [role="dialog"] * {
-    position: static !important;
-    overflow: visible !important;
-    max-height: none !important;
-  }
-  .print-area {
-    position: absolute !important;
   }
 }

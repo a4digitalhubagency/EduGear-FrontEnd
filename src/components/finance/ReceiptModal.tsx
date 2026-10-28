@@ -2,6 +2,7 @@
 
 import { Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { PrintArea } from "@/components/ui/PrintArea";
 import { LoadingText } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api-client";
 import { PAYMENT_METHOD_LABELS } from "@/lib/finance-labels";
@@ -20,7 +21,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 /**
  * A verified payment's receipt (GET /finance/payments/:id/receipt), laid out to print
- * on its own: the .print-area rules in globals.css hide the rest of the app.
+ * on its own: <PrintArea> prints just the receipt, not the app around it.
  */
 export function ReceiptModal({ paymentId, path, onClose }: { paymentId: string; path?: string; onClose: () => void }) {
   const receipt = useReceipt(paymentId, path);
@@ -52,7 +53,7 @@ export function ReceiptModal({ paymentId, path, onClose }: { paymentId: string; 
         ) : receipt.isError ? (
           <p className="px-6 py-10 text-center text-sm text-slate-gray">{errorMessage(receipt.error)}</p>
         ) : r ? (
-          <div className="print-area p-6">
+          <PrintArea className="p-6">
             <div className="flex items-start gap-4 border-b border-slate-gray/10 pb-4">
               {logo && (
                 // eslint-disable-next-line @next/next/no-img-element -- object/blob URLs can't go through next/image
@@ -90,7 +91,7 @@ export function ReceiptModal({ paymentId, path, onClose }: { paymentId: string; 
               Issued {formatDate(r.issuedAt)}
               {r.receivedBy && ` · Received by ${r.receivedBy}`}
             </p>
-          </div>
+          </PrintArea>
         ) : null}
       </div>
     </div>

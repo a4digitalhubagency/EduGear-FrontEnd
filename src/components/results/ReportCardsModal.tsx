@@ -2,6 +2,7 @@
 
 import { Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { PrintArea } from "@/components/ui/PrintArea";
 import { LoadingText } from "@/components/ui/table";
 import { ReportCardView } from "@/components/results/ReportCardView";
 import { errorMessage } from "@/lib/api-client";
@@ -16,8 +17,8 @@ interface ReportCardsModalProps {
 
 /**
  * Report cards for a result sheet (GET /results/sheets/:id/report-cards), one student
- * or the whole class, ready to print: each card starts a new page, and the .print-area
- * rules in globals.css hide the rest of the app.
+ * or the whole class, ready to print: each card starts a new page, and <PrintArea> prints
+ * just the cards, not the app around them.
  */
 export function ReportCardsModal({ sheetId, studentId, onClose }: ReportCardsModalProps) {
   const cards = useClassReportCards(sheetId);
@@ -52,11 +53,11 @@ export function ReportCardsModal({ sheetId, studentId, onClose }: ReportCardsMod
           ) : shown.length === 0 ? (
             <p className="p-10 text-center text-sm text-slate-gray">No report cards yet. Compute the results first.</p>
           ) : (
-            <div className="print-area divide-y divide-slate-gray/10">
+            <PrintArea className="divide-y divide-slate-gray/10">
               {shown.map((card) => (
                 <ReportCardView key={card.student.id} card={card} />
               ))}
-            </div>
+            </PrintArea>
           )}
         </div>
       </div>
