@@ -166,7 +166,7 @@ export function AttendanceReportsView() {
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="rounded-xl border border-slate-gray/10 bg-white p-5 lg:col-span-2">
               <h2 className="text-sm font-bold text-primary-navy">{armFilter ? "Attendance by Student" : "Attendance by Class Arm"}</h2>
-              <p className="text-xs text-slate-gray">{termLabel} so far. Hover a bar for its exact rate.</p>
+              <p className="text-xs text-slate-gray">{termLabel} so far.{!armFilter && points.length <= 12 ? "" : " Hover a bar for its exact rate."}</p>
               <div className="mt-4">
                 <AttendanceRateBarChart points={points} lowThreshold={LOW_RATE} showLabels={!armFilter && points.length <= 12} heightClassName="h-36" />
               </div>

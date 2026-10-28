@@ -43,7 +43,9 @@ export function AttendanceRateBarChart({
               key={`${point.label}-${index}`}
               className="flex h-full max-w-16 flex-1 flex-col items-center justify-end gap-1.5"
             >
-              <div className="flex w-full flex-1 items-end">
+              <div className="flex w-full flex-1 flex-col items-center justify-end gap-1">
+                {/* Printed, not just in the tooltip: phones can't hover. */}
+                {showLabels && <span className="text-[10px] font-semibold text-primary-navy">{Math.round(point.rate)}%</span>}
                 <div
                   title={`${point.label}: ${point.rate}%`}
                   className={`w-full rounded-t-sm transition-colors ${isLow ? LOW_BAR_CLASS : DEFAULT_BAR_CLASS}`}
