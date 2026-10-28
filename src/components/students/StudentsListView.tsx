@@ -8,14 +8,16 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { StudentAvatar } from "@/components/students/StudentAvatar";
 import { StudentStatusBadge } from "@/components/students/StatusBadge";
-import { errorMessage } from "@/lib/api-client";
+import { api, errorMessage, toQueryString } from "@/lib/api-client";
+import { csvDate, downloadCsv } from "@/lib/csv";
 import { useDebouncedValue } from "@/lib/hooks";
 import { useClassArms, useClasses } from "@/lib/queries/academics";
 import { useStudents } from "@/lib/queries/students";
 import { useCan } from "@/lib/store/auth-store";
 import { GENDER_LABELS, STUDENT_STATUS_LABELS } from "@/lib/student-labels";
 import { cn, formatDate } from "@/lib/utils";
-import { GENDERS, STUDENT_STATUSES, type Gender, type StudentStatus, type StudentsQuery } from "@/types/students";
+import type { Paginated } from "@/types/api";
+import { GENDERS, STUDENT_STATUSES, type Gender, type Student, type StudentStatus, type StudentsQuery } from "@/types/students";
 
 const PAGE_SIZE = 20;
 const COLUMNS = 8;
@@ -46,7 +48,8 @@ function pageWindow(page: number, totalPages: number) {
  *   because the list endpoint carries no guardian data (it's on the profile).
  * - The Session filter is gone: students aren't tied to a session in the backend.
  * - Statuses are the backend's five (no Pending / On Leave).
- * "Export" stays an inert affordance until there's an export endpoint.
+ * Export downloads every student matching the current filters as CSV, built in the browser
+ * (the backend has no export endpoint), with dates as DD/MM/YYYY like the import expects.
  */
 export function StudentsListView() {
   const canCreate = useCan("students.create");
@@ -61,16 +64,43 @@ export function StudentsListView() {
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search);
 
-  const students = useStudents({
-    page,
-    limit: PAGE_SIZE,
+  const filters = {
     search: debouncedSearch.trim() || undefined,
     status,
     gender: gender || undefined,
     ...placementQuery(placement),
     sortBy: "lastName",
     sortOrder: "asc", // the backend defaults to desc, which reads backwards for names
-  });
+  } satisfies Omit<StudentsQuery, "page" | "limit">;
+  const students = useStudents({ page, limit: PAGE_SIZE, ...filters });
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function exportStudents() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const all: Student[] = [];
+      // The list endpoint pages at most 100 at a time.
+      for (let p = 1; ; p++) {
+        const res = await api<Paginated<Student>>(`/students${toQueryString({ ...filters, page: p, limit: 100 })}`);
+        all.push(...res.data);
+        if (!res.meta.hasNextPage) break;
+      }
+      downloadCsv(
+        `students-${new Date().toISOString().slice(0, 10)}.csv`,
+        ["Admission No", "Last Name", "First Name", "Middle Name", "Gender", "Date of Birth", "Class", "Status", "Admission Date", "Phone", "Email", "State of Origin"],
+        all.map((s) => [
+          s.studentId, s.lastName, s.firstName, s.middleName, GENDER_LABELS[s.gender], csvDate(s.dateOfBirth), s.className ?? "Not placed",
+          STUDENT_STATUS_LABELS[s.status], csvDate(s.admissionDate), s.phone, s.email, s.stateOfOrigin,
+        ]),
+      );
+    } catch (err) {
+      setExportError(errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Every filter change starts again from page 1, or you could land past the last page.
   function changeFilter<T>(setter: (value: T) => void) {
@@ -97,9 +127,9 @@ export function StudentsListView() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" className="w-auto px-4 py-2.5">
-            <Download className="h-4 w-4" />
-            Export
+          <Button type="button" variant="secondary" className="w-auto px-4 py-2.5" onClick={exportStudents} isLoading={exporting} disabled={!meta?.total}>
+            {!exporting && <Download className="h-4 w-4" />}
+            {exporting ? "Exporting..." : "Export"}
           </Button>
           {canCreate && (
             <>
@@ -119,6 +149,7 @@ export function StudentsListView() {
           )}
         </div>
       </div>
+      {exportError && <p className="mt-3 text-sm text-red-600">Couldn&apos;t export: {exportError}</p>}
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">
