@@ -182,6 +182,13 @@ function SheetDetail({ sheetId, onBack }: { sheetId: string; onBack: () => void 
           </Button>
         </div>
       </div>
+      {s.status === "DRAFT" && canUpdate && !s.ready && (
+        // Said out loud, not only in the button's tooltip: phones can't hover, and a greyed-out button looks broken.
+        <p className="text-sm text-slate-gray">
+          <span className="font-semibold text-primary-navy">Submit for Approval</span> unlocks once every score below is entered.
+          After entering them, click <span className="font-semibold text-primary-navy">Recompute</span>.
+        </p>
+      )}
 
       {error && <FormError message={error} />}
       {s.stale && s.status === "DRAFT" && (
