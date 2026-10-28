@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, GraduationCap, HardDrive, LogOut, Users } from "lucide-react";
+import { Building2, GraduationCap, HardDrive, KeyRound, LogOut, Users } from "lucide-react";
 import { EduGearLogo } from "@/components/EduGearLogo";
 import { PlatformAdminsPanel } from "@/components/platform/PlatformAdminsPanel";
+import { PlatformPasswordModal } from "@/components/platform/PlatformPasswordModal";
 import { PlatformSchoolsPanel } from "@/components/platform/PlatformSchoolsPanel";
 import { formatBytes } from "@/components/settings/StorageSettings";
 import { LoadingText, RetryButton, Tabs } from "@/components/ui/table";
@@ -87,10 +88,12 @@ export function PlatformConsole() {
     };
   }, [queryClient, router]);
 
-  async function signOut() {
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  async function signOut(to = "/platform/login") {
     await fetch("/api/platform/session", { method: "DELETE" }).catch(() => null);
     queryClient.removeQueries({ queryKey: ["platform"] });
-    router.replace("/platform/login");
+    router.replace(to);
   }
 
   return (
@@ -108,7 +111,11 @@ export function PlatformConsole() {
                 <span className="text-slate-gray">{me.data.role.charAt(0) + me.data.role.slice(1).toLowerCase()}</span>
               </span>
             )}
-            <button type="button" onClick={signOut} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
+            <button type="button" onClick={() => setChangingPassword(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
+              <KeyRound className="h-4 w-4" />
+              <span className="hidden sm:inline">Password</span>
+            </button>
+            <button type="button" onClick={() => signOut()} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
               <LogOut className="h-4 w-4" />
               Sign out
             </button>
@@ -128,6 +135,10 @@ export function PlatformConsole() {
           )}
         </div>
       </main>
+      {changingPassword && (
+        // The backend has already revoked this session, so drop its cookie and sign in with the new password.
+        <PlatformPasswordModal onClose={() => setChangingPassword(false)} onChanged={() => signOut("/platform/login?changed=1")} />
+      )}
     </div>
   );
 }

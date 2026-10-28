@@ -9,7 +9,7 @@ import { Input, PasswordInput } from "../ui/Input";
 import { ApiError, errorMessage } from "../../lib/api-client";
 
 /** A4 operator sign-in (POST /platform/auth/login). A separate door from school logins on purpose. */
-export function PlatformLoginForm({ expired }: { expired: boolean }) {
+export function PlatformLoginForm({ expired, changed }: { expired: boolean; changed: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,6 +53,9 @@ export function PlatformLoginForm({ expired }: { expired: boolean }) {
       <form onSubmit={submit} noValidate className="mt-8 space-y-5">
         <Input label="Email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <PasswordInput label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {changed && !error && !pending && (
+          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-700">Password changed. Sign in with your new password.</p>
+        )}
         <FormError message={error} />
         <Button type="submit" isLoading={pending}>
           Sign In

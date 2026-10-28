@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BACKEND_URL, PLATFORM_COOKIE, backendUnreachable } from "@/lib/server/backend";
+import { BACKEND_URL, PLATFORM_COOKIE, backendUnreachable, clientIpHeaders } from "@/lib/server/backend";
 
 /**
  * /api/platform/<path> -> backend /platform/<path>, with the platform token from its cookie.
@@ -12,7 +12,7 @@ async function forward(req: NextRequest, { params }: { params: Promise<{ path: s
     return NextResponse.json({ statusCode: 401, errorCode: "UNAUTHORIZED", message: "Please sign in again." }, { status: 401 });
   }
 
-  const headers = new Headers({ authorization: `Bearer ${token}` });
+  const headers = new Headers({ ...clientIpHeaders(req), authorization: `Bearer ${token}` });
   const type = req.headers.get("content-type");
   if (type) headers.set("content-type", type);
 

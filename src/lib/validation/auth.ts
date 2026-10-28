@@ -54,6 +54,18 @@ export const resetPasswordSchema = z
 
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
+/** ChangePasswordDto, for staff (/auth/change-password) and platform operators alike. */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    newPassword: newPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords don't match" })
+  .refine((v) => v.newPassword !== v.currentPassword, { path: ["newPassword"], message: "Choose a different password" });
+
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
+
 const optionalPhone = z.string().trim().refine((v) => v === "" || NG_PHONE_REGEX.test(v), NG_PHONE_MESSAGE);
 
 /** School sign-up: mirrors the backend's RegisterSchoolDto (POST /auth/register-school). */

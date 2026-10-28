@@ -4,7 +4,7 @@ import { PLATFORM_COOKIE, backendUnreachable, platformCookieOptions, postToBacke
 /** Platform sign-in (POST /platform/auth/login). Only the operator record reaches the browser. */
 export async function POST(req: Request) {
   const { email, password } = await req.json().catch(() => ({}));
-  const backendRes = await postToBackend("/platform/auth/login", { email, password });
+  const backendRes = await postToBackend(req, "/platform/auth/login", { email, password });
   if (!backendRes) return backendUnreachable();
   const data = await readJson(backendRes);
   if (!data) return backendUnreachable();

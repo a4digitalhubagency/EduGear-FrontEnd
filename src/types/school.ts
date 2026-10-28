@@ -34,6 +34,10 @@ export type UpdateSchoolInput = Partial<{
   motto: string;
 }>;
 
+/** Index is Date.getUTCDay(): 0 is Sunday, as the backend orders them. */
+export const WEEKDAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
 /** GET /schools/me/settings */
 export type SchoolSettings = {
   admissionNumberPrefix: string | null;
@@ -44,6 +48,7 @@ export type SchoolSettings = {
   invoiceDueDays: number | null; // 0-365; days to pay when a fee structure sets no due date
   reportShowPosition: boolean;
   reportShowClassStats: boolean;
+  schoolDays: Weekday[]; // the days registers may be taken; at least one, week-ordered from Sunday
 };
 
 /** PATCH /schools/me/settings. Prefixes: 1-10 of A-Z, 0-9 or "-", uppercased by the backend. */

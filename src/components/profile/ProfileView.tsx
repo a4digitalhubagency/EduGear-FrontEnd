@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { CheckCircle2, KeyRound, LogOut, MonitorSmartphone, School } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -13,24 +12,12 @@ import { FormError } from "@/components/ui/FormError";
 import { PasswordInput } from "@/components/ui/Input";
 import { LoadingText, PageHeader, Pill } from "@/components/ui/table";
 import { api, errorMessage, jsonBody, passwordErrorMessage } from "@/lib/api-client";
-import { newPasswordSchema } from "@/lib/validation/auth";
+import { changePasswordSchema, type ChangePasswordValues } from "@/lib/validation/auth";
 import { logout, logoutEverywhere, switchSchool } from "@/lib/auth-actions";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { AuthUser, MembershipSummary } from "@/lib/store/auth-store";
 
 type Profile = { user: AuthUser; activeSchool: MembershipSummary; memberships: MembershipSummary[]; permissions: string[] };
-
-/** ChangePasswordDto, with the backend's password policy (10-128 characters, a letter and a number). */
-const passwordSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Enter your current password"),
-    newPassword: newPasswordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords don't match" })
-  .refine((v) => v.newPassword !== v.currentPassword, { path: ["newPassword"], message: "Choose a different password" });
-
-type PasswordValues = z.infer<typeof passwordSchema>;
 
 function Card({ title, icon: Icon, children }: { title: string; icon: typeof KeyRound; children: React.ReactNode }) {
   return (
@@ -51,9 +38,9 @@ function ChangePasswordCard() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
+  } = useForm<ChangePasswordValues>({ resolver: zodResolver(changePasswordSchema) });
 
-  async function onSubmit({ currentPassword, newPassword }: PasswordValues) {
+  async function onSubmit({ currentPassword, newPassword }: ChangePasswordValues) {
     setServerError(null);
     try {
       await api("/auth/change-password", jsonBody("POST", { currentPassword, newPassword }));

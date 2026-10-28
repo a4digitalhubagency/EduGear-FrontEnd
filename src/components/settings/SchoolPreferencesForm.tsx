@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/Input";
 import { errorMessage } from "@/lib/api-client";
 import { useUpdateSchoolSettings } from "@/lib/queries/school";
 import { schoolSettingsSchema, type SchoolSettingsValues } from "@/lib/validation/settings";
-import type { SchoolSettings } from "@/types/school";
+import { WEEKDAYS, type SchoolSettings, type Weekday } from "@/types/school";
+
+// Monday first, the way a school week is read. The backend accepts any order.
+const WEEK_ORDER = [...WEEKDAYS.slice(1), WEEKDAYS[0]];
+const dayLabel = (day: Weekday) => day.charAt(0) + day.slice(1).toLowerCase();
 
 function toFormValues(settings: SchoolSettings): SchoolSettingsValues {
   return {
@@ -21,6 +25,8 @@ function toFormValues(settings: SchoolSettings): SchoolSettingsValues {
     invoiceDueDays: settings.invoiceDueDays === null ? "" : String(settings.invoiceDueDays),
     reportShowPosition: settings.reportShowPosition,
     reportShowClassStats: settings.reportShowClassStats,
+    // In the order the checkboxes show, which is the order the form reads them back in.
+    schoolDays: WEEK_ORDER.filter((day) => settings.schoolDays.includes(day)),
   };
 }
 
@@ -126,6 +132,18 @@ export function SchoolPreferencesForm({ settings, canUpdate }: { settings: Schoo
               <p className="mt-1.5 text-xs text-slate-gray">Skip parents reminded within this many days. 0 turns it off.</p>
             </div>
           </div>
+        </Section>
+
+        <Section
+          title="School Days"
+          description="Attendance registers can only be taken on these days. Untick a day the school never opens."
+        >
+          <div className="flex flex-wrap gap-x-5 gap-y-3">
+            {WEEK_ORDER.map((day) => (
+              <Checkbox key={day} id={`school-day-${day}`} label={dayLabel(day)} value={day} {...register("schoolDays")} />
+            ))}
+          </div>
+          <FormError message={errors.schoolDays?.message} />
         </Section>
 
         <Section title="Parent Portal" description="Turning it off blocks every parent login without revoking them.">

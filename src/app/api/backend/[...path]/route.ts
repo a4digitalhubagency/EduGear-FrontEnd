@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BACKEND_URL, backendUnreachable } from "@/lib/server/backend";
+import { BACKEND_URL, backendUnreachable, clientIpHeaders } from "@/lib/server/backend";
 
 async function forward(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
   const url = `${BACKEND_URL}/${path.join("/")}${req.nextUrl.search}`;
 
-  const headers = new Headers();
+  const headers = new Headers(clientIpHeaders(req));
   const auth = req.headers.get("authorization");
   if (auth) headers.set("authorization", auth);
   const type = req.headers.get("content-type");

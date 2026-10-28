@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   // Only RegisterSchoolDto's fields (forbidNonWhitelisted), and blank optionals left out.
   const input = Object.fromEntries(FIELDS.filter((k) => typeof body[k] === "string" && body[k].trim() !== "").map((k) => [k, body[k]]));
 
-  const backendRes = await postToBackend("/auth/register-school", input);
+  const backendRes = await postToBackend(req, "/auth/register-school", input);
   if (!backendRes) return backendUnreachable();
   const data = await readJson(backendRes);
   if (!data) return backendUnreachable();

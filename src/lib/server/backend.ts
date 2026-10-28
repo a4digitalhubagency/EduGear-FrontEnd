@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 
 export const BACKEND_URL = process.env.BACKEND_API_URL!;
 
+// Server-only (never NEXT_PUBLIC_): it proves to the backend that a client address came from us.
+const PROXY_SECRET = process.env.TRUSTED_PROXY_SECRET;
+
+/**
+ * Every call reaches the backend from this server's one address, so without help all users
+ * would share one rate-limit budget. These headers name the real visitor, and the secret
+ * makes the backend believe it. The address is X-Real-IP, which Railway's edge overwrites on
+ * every request, so a visitor can't pick their own. X-Forwarded-For is deliberately not used:
+ * its earlier hops are whatever the caller typed. No secret or no address (local dev) sends
+ * nothing, and the backend falls back to the shared budget.
+ */
+export function clientIpHeaders(req: Request): Record<string, string> {
+  const ip = req.headers.get("x-real-ip")?.trim();
+  return PROXY_SECRET && ip ? { "X-Client-Ip": ip, "X-Edge-Secret": PROXY_SECRET } : {};
+}
+
 // One cookie definition so login, refresh and logout can never drift apart.
 export const REFRESH_COOKIE = "refresh_token";
 // Non-sensitive flag: "1" when "remember me" was ticked, so refresh can keep the same cookie lifetime.
@@ -33,11 +49,11 @@ export function backendUnreachable() {
 
 // Server-to-server JSON POST. Returns null when the backend can't be reached at all
 // (DNS failure, connection refused or reset) instead of throwing.
-export async function postToBackend(path: string, body: unknown): Promise<Response | null> {
+export async function postToBackend(req: Request, path: string, body: unknown): Promise<Response | null> {
   try {
     return await fetch(`${BACKEND_URL}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...clientIpHeaders(req) },
       body: JSON.stringify(body),
     });
   } catch {

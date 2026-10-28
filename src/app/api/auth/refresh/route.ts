@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Keep the cookie when the backend is down: the token may still be valid once it's back.
-  const backendRes = await postToBackend("/auth/refresh", { refreshToken });
+  const backendRes = await postToBackend(req, "/auth/refresh", { refreshToken });
   if (!backendRes) return backendUnreachable();
 
   const data = await readJson(backendRes);

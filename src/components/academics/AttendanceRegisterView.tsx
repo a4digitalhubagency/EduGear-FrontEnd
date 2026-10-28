@@ -12,10 +12,12 @@ import { ArmOptions } from "@/components/students/ArmOptions";
 import { errorMessage } from "@/lib/api-client";
 import { useClassArms, useCurrentTerm } from "@/lib/queries/academics";
 import { useRegister, useSaveRegister } from "@/lib/queries/attendance";
+import { useSchoolSettings } from "@/lib/queries/school";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { formatDate, toDateInput, todayInput } from "@/lib/utils";
 import type { Term } from "@/types/academics";
 import type { AttendanceStatus, Register } from "@/types/attendance";
+import { WEEKDAYS, type Weekday } from "@/types/school";
 
 const MARK_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: "Present",
@@ -26,11 +28,19 @@ const MARK_LABEL: Record<AttendanceStatus, string> = {
 
 type Mark = { status: AttendanceStatus | null; note: string };
 
-/** The weekday before a "YYYY-MM-DD" date (Friday for a Monday), for the Previous Day column. */
-function previousWeekday(date: string) {
+// Until settings load (or for a role that can't read them), the backend's default week.
+const DEFAULT_SCHOOL_DAYS: Weekday[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
+
+/** The weekday of a "YYYY-MM-DD" date, as the backend names it. */
+function weekdayOf(date: string): Weekday {
+  return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
+}
+
+/** The school day before a "YYYY-MM-DD" date (Friday for a Monday in a Mon-Fri week), for the Previous Day column. */
+function previousSchoolDay(date: string, schoolDays: Weekday[]) {
   const d = new Date(`${date}T00:00:00Z`);
   do d.setUTCDate(d.getUTCDate() - 1);
-  while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+  while (!schoolDays.includes(WEEKDAYS[d.getUTCDay()]));
   return d.toISOString().slice(0, 10);
 }
 
@@ -39,11 +49,15 @@ function marksFrom(register: Register): Record<string, Mark> {
 }
 
 /** Why a register can't be edited, from what the backend tells us about it. */
-function lockedReason(register: Register, date: string, currentTerm: Term | null | undefined) {
+function lockedReason(register: Register, date: string, currentTerm: Term | null | undefined, schoolDays: Weekday[]) {
   if (date > todayInput()) return "Registers can't be taken for future dates.";
   if (!register.termName) {
     const range = currentTerm ? ` The current term runs ${formatDate(currentTerm.startDate)} to ${formatDate(currentTerm.endDate)}.` : "";
     return `This date isn't inside any term, so it isn't a school day.${range}`;
+  }
+  const day = weekdayOf(date);
+  if (!schoolDays.includes(day)) {
+    return `${day.charAt(0) + day.slice(1).toLowerCase()} is not a school day. An administrator can change the school days in Settings → Preferences.`;
   }
   return `Only the form teacher of ${register.className} (or an administrator) can take or change this register.`;
 }
@@ -84,7 +98,9 @@ export function AttendanceRegisterView() {
   const [search, setSearch] = useState("");
 
   const register = useRegister(classArmId || undefined, date);
-  const previous = useRegister(classArmId || undefined, previousWeekday(date));
+  // school.read, which most roles hold; without it the default Mon-Fri week is assumed.
+  const schoolDays = useSchoolSettings().data?.schoolDays ?? DEFAULT_SCHOOL_DAYS;
+  const previous = useRegister(classArmId || undefined, previousSchoolDay(date, schoolDays));
   const save = useSaveRegister();
 
   // Local marks: reset whenever a different register (or a fresh copy of it) arrives.
@@ -271,7 +287,7 @@ export function AttendanceRegisterView() {
           {!data.canEdit && (
             <div className="flex items-start gap-2.5 rounded-lg bg-slate-gray/5 p-3 text-sm text-slate-gray">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" />
-              {lockedReason(data, date, currentTerm.data)}
+              {lockedReason(data, date, currentTerm.data, schoolDays)}
             </div>
           )}
 

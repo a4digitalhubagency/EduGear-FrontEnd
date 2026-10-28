@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WEEKDAYS } from "@/types/school";
 import { NG_PHONE_MESSAGE, NG_PHONE_REGEX, PREFIX_REGEX } from "@/lib/validation/common";
 
 /** Mirrors UpdateSchoolDto. Optional text fields may be left empty (they're then not sent). */
@@ -41,6 +42,7 @@ export const schoolSettingsSchema = z.object({
   invoiceDueDays: dayCount(365, "Days to pay"),
   reportShowPosition: z.boolean(),
   reportShowClassStats: z.boolean(),
+  schoolDays: z.array(z.enum(WEEKDAYS)).min(1, "Pick at least one school day"),
 });
 
 export type SchoolSettingsValues = z.infer<typeof schoolSettingsSchema>;

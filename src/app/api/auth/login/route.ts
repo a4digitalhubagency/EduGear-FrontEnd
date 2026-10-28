@@ -9,7 +9,7 @@ export async function POST(req: Request) {
 
   // Server-to-server call to NestJS. We forward only the fields LoginDto accepts,
   // because the backend uses forbidNonWhitelisted and would reject "remember".
-  const backendRes = await postToBackend("/auth/login", { email, password, ...(schoolId ? { schoolId } : {}) });
+  const backendRes = await postToBackend(req, "/auth/login", { email, password, ...(schoolId ? { schoolId } : {}) });
   if (!backendRes) return backendUnreachable();
 
   const data = await readJson(backendRes);

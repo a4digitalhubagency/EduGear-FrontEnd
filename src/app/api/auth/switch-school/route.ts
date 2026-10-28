@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  BACKEND_URL, REFRESH_COOKIE, REMEMBER_COOKIE, backendUnreachable, readJson, refreshCookieOptions,
+  BACKEND_URL, REFRESH_COOKIE, REMEMBER_COOKIE, backendUnreachable, clientIpHeaders, readJson, refreshCookieOptions,
 } from "@/lib/server/backend";
 
 /**
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     backendRes = await fetch(`${BACKEND_URL}/auth/switch-school/${encodeURIComponent(schoolId)}`, {
       method: "POST",
-      headers: { authorization: auth },
+      headers: { ...clientIpHeaders(req), authorization: auth },
     });
   } catch {
     return backendUnreachable();
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (oldRefreshToken) {
     await fetch(`${BACKEND_URL}/auth/logout`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...clientIpHeaders(req) },
       body: JSON.stringify({ refreshToken: oldRefreshToken }),
     }).catch(() => {});
   }
