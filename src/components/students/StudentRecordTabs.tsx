@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ReceiptModal } from "@/components/finance/ReceiptModal";
 import { Select } from "@/components/ui/Select";
 import { LoadingText, Pill, RetryButton, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table";
 import { TERM_LABELS } from "@/components/academics/setup/shared";
@@ -124,6 +125,7 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
   const canRead = useCan("finance.read");
   const statement = useStudentStatement(studentId, canRead);
   const s = statement.data;
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
 
   if (!canRead) return <Panel><Message>You don&apos;t have access to fees.</Message></Panel>;
   if (statement.isPending) return <Panel><Message><LoadingText label="Loading fee statement..." /></Message></Panel>;
@@ -211,7 +213,21 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
                 <td className="px-5 py-2.5 text-slate-gray">{formatDate(entry.date)}</td>
                 <td className="px-5 py-2.5 text-primary-navy">
                   {entry.description}
-                  {entry.reference && <span className="ml-1.5 text-xs text-slate-gray">({entry.reference})</span>}
+                  {entry.reference && (() => {
+                    const paymentId = entry.type === "PAYMENT" ? s.payments.find((p) => p.receiptNumber === entry.reference)?.id : undefined;
+                    return paymentId ? (
+                      <button
+                        type="button"
+                        onClick={() => setReceiptFor(paymentId)}
+                        title="Open receipt"
+                        className="ml-1.5 text-xs font-semibold text-bright-blue hover:underline"
+                      >
+                        {entry.reference}
+                      </button>
+                    ) : (
+                      <span className="ml-1.5 text-xs text-slate-gray">({entry.reference})</span>
+                    );
+                  })()}
                 </td>
                 <td className="px-5 py-2.5 text-right text-slate-gray">{entry.debit ? formatNaira(entry.debit) : ""}</td>
                 <td className="px-5 py-2.5 text-right text-green-700">{entry.credit ? formatNaira(entry.credit) : ""}</td>
@@ -221,6 +237,7 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
           </tbody>
         </table>
       </div>
+      {receiptFor && <ReceiptModal paymentId={receiptFor} onClose={() => setReceiptFor(null)} />}
     </div>
   );
 }
