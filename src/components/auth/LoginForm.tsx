@@ -23,6 +23,10 @@ function loginErrorMessage(status: number, body: { errorCode?: string; message?:
   if (status === 429 || body?.errorCode === "RATE_LIMITED") return "Too many attempts. Please wait and try again.";
   if (status === 502 || body?.errorCode === "BACKEND_UNREACHABLE") return UNREACHABLE_MESSAGE;
   if (status === 401) return "Invalid email or password.";
+  // The backend can't say which: the school's EduGear account is suspended, or this person's access was removed.
+  if (body?.errorCode === "MEMBERSHIP_INACTIVE") {
+    return "Your password is correct, but this account can't open a school right now: either your school's EduGear subscription is paused or your access was removed. Please contact your school administrator, or support@edugear.ng.";
+  }
   // 403s (pending invitation, inactive account, no active school) carry a user-facing message.
   if (status === 403 && body?.message) return body.message;
   // Unexpected: quote the backend's reference so it can be found in the logs.
