@@ -148,7 +148,8 @@ export function DashboardOverview() {
               index={3}
           label="Outstanding Fees"
               value={display(finance, (f) => formatNaira(f.totalOutstanding, true))}
-              caption={finance.data && finance.data.totalOutstanding > 0 ? "Action Required" : "All Settled"}
+              // "All Settled" only means something once fees have been billed.
+              caption={finance.data && finance.data.totalOutstanding > 0 ? "Action Required" : hasBilling ? "All Settled" : "No Invoices Yet"}
               captionTone={finance.data && finance.data.totalOutstanding > 0 ? "negative" : "neutral"}
             />
           </>
