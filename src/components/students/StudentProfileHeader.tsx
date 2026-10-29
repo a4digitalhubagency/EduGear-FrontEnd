@@ -7,6 +7,7 @@ import { ChevronDown, GraduationCap, Hash, RefreshCw, SquarePen, Trash2 } from "
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Popover } from "@/components/ui/Popover";
+import { Tabs } from "@/components/ui/table";
 import { ChangeStatusModal } from "@/components/students/ChangeStatusModal";
 import { StudentAvatar } from "@/components/students/StudentAvatar";
 import { STUDENT_STATUS_DOT_COLORS } from "@/components/students/StatusBadge";
@@ -125,22 +126,7 @@ export function StudentProfileHeader({ student, activeTab, onTabChange }: Studen
         </div>
       </div>
 
-      <div className="mt-5 flex gap-5 overflow-x-auto border-b border-slate-gray/10 text-sm font-semibold">
-        {PROFILE_TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => onTabChange(tab)}
-            className={
-              tab === activeTab
-                ? "whitespace-nowrap border-b-2 transition-colors duration-200 border-bright-blue pb-3 text-bright-blue"
-                : "whitespace-nowrap border-b-2 transition-colors duration-200 border-transparent pb-3 text-slate-gray hover:text-primary-navy"
-            }
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={PROFILE_TABS} active={activeTab} onChange={onTabChange} />
 
       {changingStatus && <ChangeStatusModal student={student} onClose={() => setChangingStatus(false)} />}
       {deleting && (

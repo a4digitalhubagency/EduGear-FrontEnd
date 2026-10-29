@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Minus, TrendingUp } from "lucide-react";
+import { CountUp } from "@/components/ui/CountUp";
 import { cn } from "@/lib/utils";
 
 type BadgeTone = "positive" | "neutral" | "negative";
@@ -62,7 +63,9 @@ export function StatCard({
       </div>
 
       <p className="mt-3 text-xs text-slate-gray">{label}</p>
-      <p className="text-xl font-bold text-primary-navy">{value}</p>
+      <p className="text-xl font-bold text-primary-navy">
+        <CountUp value={value} />
+      </p>
 
       {progressPercent !== undefined ? (
         <div className="mt-2 h-1.5 w-full rounded-full bg-slate-gray/10">

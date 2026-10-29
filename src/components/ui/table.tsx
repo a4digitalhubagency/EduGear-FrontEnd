@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Loader2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PaginationMeta } from "@/types/api";
@@ -8,7 +9,8 @@ import type { PaginationMeta } from "@/types/api";
 export const TABLE_CARD = "overflow-x-auto rounded-xl border border-slate-gray/10 bg-white";
 export const TABLE_HEAD_ROW =
   "border-b border-slate-gray/10 text-xs font-semibold uppercase tracking-wide text-slate-gray";
-export const TABLE_ROW = "border-b border-slate-gray/10 last:border-0 hover:bg-cloud-sky/20";
+// animate-fade-in: rows ease in when data arrives or a page/filter changes, rather than popping.
+export const TABLE_ROW = "animate-fade-in border-b border-slate-gray/10 transition-colors last:border-0 hover:bg-cloud-sky/20";
 
 /**
  * Small square icon action for table rows (edit, delete). With disabledReason it stays
@@ -151,8 +153,35 @@ export function Tabs<T extends string>({
   active: T;
   onChange: (tab: T) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLSpanElement>(null);
+
+  // One underline that slides to the chosen tab. Placed by measuring the tab, straight onto
+  // the element's style: it's layout, not state, so it doesn't re-render anything.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const bar = barRef.current;
+    if (!list || !bar) return;
+    const place = () => {
+      const tab = list.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+      if (!tab) return;
+      bar.style.width = `${tab.offsetWidth}px`;
+      bar.style.transform = `translateX(${tab.offsetLeft}px)`;
+    };
+    place();
+    // Slide only after the first placement, so it doesn't sweep in from the left on load.
+    const frame = requestAnimationFrame(() => bar.classList.add("transition-[transform,width]"));
+    const resize = new ResizeObserver(place); // tabs re-wrap or fonts load
+    resize.observe(list);
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+    };
+  }, [active]);
+
   return (
-    <div role="tablist" className="mt-5 flex gap-5 overflow-x-auto border-b border-slate-gray/10 text-sm font-semibold">
+    <div ref={listRef} role="tablist" className="relative mt-5 flex gap-5 overflow-x-auto border-b border-slate-gray/10 text-sm font-semibold">
+      <span ref={barRef} aria-hidden className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-0 rounded-full bg-bright-blue duration-300 ease-out" />
       {tabs.map((tab) => (
         <button
           key={tab}
@@ -166,8 +195,8 @@ export function Tabs<T extends string>({
           }}
           className={
             tab === active
-              ? "whitespace-nowrap border-b-2 transition-colors duration-200 border-bright-blue pb-3 text-bright-blue"
-              : "whitespace-nowrap border-b-2 transition-colors duration-200 border-transparent pb-3 text-slate-gray hover:text-primary-navy"
+              ? "whitespace-nowrap pb-3.5 text-bright-blue transition-colors duration-200"
+              : "whitespace-nowrap pb-3.5 text-slate-gray transition-colors duration-200 hover:text-primary-navy"
           }
         >
           {tab}

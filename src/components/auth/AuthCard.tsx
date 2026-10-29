@@ -17,7 +17,7 @@ interface AuthCardProps {
 export function AuthCard({ children, wide = false }: AuthCardProps) {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-white px-6 py-12">
-      <div className={wide ? "w-full max-w-xl" : "w-full max-w-sm"}>
+      <div className={wide ? "w-full max-w-xl animate-fade-in-up" : "w-full max-w-sm animate-fade-in-up"}>
         <div className="mb-8 flex justify-center">
           <EduGearLogo />
         </div>

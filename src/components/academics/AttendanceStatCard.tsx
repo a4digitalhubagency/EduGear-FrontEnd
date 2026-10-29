@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { CountUp } from "@/components/ui/CountUp";
 
 interface AttendanceStatCardProps {
   icon: LucideIcon;
@@ -31,7 +32,9 @@ export function AttendanceStatCard({
         <Icon className={`h-5 w-5 ${iconClass}`} />
       </div>
       <p className="mt-3 text-xs text-slate-gray">{label}</p>
-      <p className="text-xl font-bold text-primary-navy">{value}</p>
+      <p className="text-xl font-bold text-primary-navy">
+        <CountUp value={value} />
+      </p>
       {caption && <p className={`mt-1 text-xs font-semibold ${captionClass}`}>{caption}</p>}
     </div>
   );
