@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Plus, Receipt as ReceiptIcon, Search, XCircle } from "lucide-react";
+import { CheckCircle2, Paperclip, Plus, Receipt as ReceiptIcon, Search, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { Input } from "@/components/ui/Input";
@@ -16,6 +16,7 @@ import {
   TABLE_ROW,
   TableStateRow,
 } from "@/components/ui/table";
+import { EvidenceModal } from "@/components/finance/EvidenceModal";
 import { ReasonModal } from "@/components/finance/ReasonModal";
 import { ReceiptModal } from "@/components/finance/ReceiptModal";
 import { RecordPaymentModal } from "@/components/finance/RecordPaymentModal";
@@ -64,6 +65,7 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
   }
   const [rejecting, setRejecting] = useState<Payment | null>(null);
   const [receiptFor, setReceiptFor] = useState<string | null>(null);
+  const [evidenceFor, setEvidenceFor] = useState<Payment | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function verifyPayment(payment: Payment) {
@@ -168,11 +170,18 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-primary-navy">{formatNaira(p.amount)}</p>
-                    <p className="text-xs text-slate-gray">Balance after: {formatNaira(p.invoiceBalance)}</p>
+                    {/* The invoice's balance today, not when this was paid (and before a pending payment counts). */}
+                    <p className="text-xs text-slate-gray">Invoice balance: {formatNaira(p.invoiceBalance)}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-gray">
                     {PAYMENT_METHOD_LABELS[p.method]}
                     {p.reference && <p className="text-xs">{p.reference}</p>}
+                    {p.evidenceUrl && (
+                      <button type="button" onClick={() => setEvidenceFor(p)} className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-bright-blue hover:underline">
+                        <Paperclip className="h-3 w-3" />
+                        View proof
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Pill className={PAYMENT_STATUS_STYLES[p.status]}>{PAYMENT_STATUS_LABELS[p.status]}</Pill>
@@ -207,6 +216,7 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
 
       {recording && <RecordPaymentModal onClose={closeRecording} />}
       {receiptFor && <ReceiptModal paymentId={receiptFor} onClose={() => setReceiptFor(null)} />}
+      {evidenceFor && <EvidenceModal payment={evidenceFor} onClose={() => setEvidenceFor(null)} />}
       {rejecting && (
         <ReasonModal
           title="Reject Payment"
