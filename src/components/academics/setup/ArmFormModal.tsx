@@ -75,7 +75,8 @@ export function ArmFormModal({ schoolClass, arm, onClose }: ArmFormModalProps) {
     }
   }
 
-  const staffList = staff.data?.data ?? [];
+  // /users also lists parents (portal logins are memberships too); a parent can't be a form teacher.
+  const staffList = (staff.data?.data ?? []).filter((m) => m.roleSlug !== "PARENT");
   // Keep the current teacher selectable even if they're no longer in the active list.
   const currentTeacherMissing = !!arm?.formTeacherId && !staffList.some((m) => m.membershipId === arm.formTeacherId);
 
