@@ -16,6 +16,8 @@ import { schoolProfileSchema, type SchoolProfileValues } from "@/lib/validation/
 import type { School, UpdateSchoolInput } from "@/types/school";
 
 const LOGO_TYPES = "image/png,image/jpeg,image/webp";
+// The backend's SCHOOL_LOGO limit, checked here too so a big photo fails at once instead of after uploading.
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
 function toFormValues(school: School): SchoolProfileValues {
   return {
@@ -40,14 +42,16 @@ function SchoolLogo({ school, canUpdate }: { school: School; canUpdate: boolean 
   function onFile(file: File | undefined) {
     if (!file) return;
     setError(null);
-    upload.mutate(file, { onError: (err) => setError(errorMessage(err)) });
     if (input.current) input.current.value = ""; // so picking the same file again still fires
+    if (!LOGO_TYPES.split(",").includes(file.type)) return setError("The logo must be a PNG, JPG or WebP image.");
+    if (file.size > LOGO_MAX_BYTES) return setError("The logo must be 2 MB or smaller. Try a smaller or compressed image.");
+    upload.mutate(file, { onError: (err) => setError(errorMessage(err)) });
   }
 
   return (
     <div className="rounded-xl border border-slate-gray/10 bg-white p-5">
       <p className="text-sm font-bold text-primary-navy">School Logo</p>
-      <p className="mt-1 text-xs text-slate-gray">Printed on receipts, statements and report cards.</p>
+      <p className="mt-1 text-xs text-slate-gray">Printed on receipts and report cards.</p>
 
       <div className="mt-4 flex items-center gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-gray/10 bg-cloud-sky/40">
@@ -89,7 +93,7 @@ function SchoolLogo({ school, canUpdate }: { school: School; canUpdate: boolean 
           </div>
         )}
       </div>
-      <p className="mt-3 text-xs text-slate-gray">PNG, JPG or WebP.</p>
+      <p className="mt-3 text-xs text-slate-gray">PNG, JPG or WebP, up to 2 MB.</p>
       {error && (
         <div className="mt-3">
           <FormError message={error} />
