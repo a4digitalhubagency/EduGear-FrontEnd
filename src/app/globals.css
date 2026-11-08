@@ -88,6 +88,27 @@ html {
   }
 }
 
+/*
+ * Landing page: sections rise in as they scroll into view. Driven by the scroll position in CSS,
+ * so browsers without scroll timelines (and visitors without JavaScript) just see the content.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.landing) {
+    scroll-behavior: smooth;
+  }
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+  @keyframes reveal-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
 /* People who ask their OS for less motion get none (accessibility, and motion sickness). */
 @media (prefers-reduced-motion: reduce) {
   *,
