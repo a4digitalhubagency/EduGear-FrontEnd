@@ -201,7 +201,7 @@ export function TermStory() {
             />
             <div className={cn("transition-opacity duration-300", i === active ? "opacity-100" : "lg:opacity-40")}>
               <p className="text-sm font-semibold text-bright-blue">{step.when}</p>
-              <h3 className="mt-2 text-2xl font-bold tracking-tight text-primary-navy sm:text-3xl">{step.title}</h3>
+              <h3 className="mt-2 text-2xl font-bold leading-tight text-primary-navy">{step.title}</h3>
               <p className="mt-3 max-w-md leading-relaxed text-slate-gray">{step.body}</p>
             </div>
             <div className="mt-6 lg:hidden">{step.panel}</div>

@@ -88,7 +88,7 @@ function SectionHeading({ kicker, title, body, light = false }: { kicker: string
   return (
     <div className="max-w-2xl">
       <p className={light ? "text-sm font-semibold text-cloud-sky" : "text-sm font-semibold text-bright-blue"}>{kicker}</p>
-      <h2 className={`mt-3 text-3xl font-bold tracking-tight sm:text-5xl ${light ? "text-white" : "text-primary-navy"}`}>{title}</h2>
+      <h2 className={`mt-3 text-3xl font-bold leading-tight sm:text-4xl ${light ? "text-white" : "text-primary-navy"}`}>{title}</h2>
       {body && <p className={`mt-4 text-lg leading-relaxed ${light ? "text-white/75" : "text-slate-gray"}`}>{body}</p>}
     </div>
   );
@@ -159,7 +159,7 @@ export function LandingPage() {
         <LandingNav />
         <section className="relative mx-auto grid max-w-7xl items-center gap-16 px-5 pb-24 pt-36 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:pb-32 lg:pt-44">
           <div className="animate-fade-in-up">
-            <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
               The school office, without the paper chase.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
@@ -234,7 +234,7 @@ export function LandingPage() {
                 <div key={plan.name} className="flex flex-col rounded-2xl bg-white p-7 shadow-lg shadow-primary-navy/5">
                   <h3 className="text-lg font-bold">{plan.name}</h3>
                   <p className="mt-1 text-sm text-slate-gray">{plan.description}</p>
-                  <p className="mt-6 text-4xl font-bold tracking-tight">{plan.price}</p>
+                  <p className="mt-6 text-4xl font-bold">{plan.price}</p>
                   <p className="mt-1 text-sm text-slate-gray">{plan.period}</p>
                   <ul className="my-6 flex-1 space-y-2.5">
                     {plan.features.map((feature) => (
@@ -251,7 +251,7 @@ export function LandingPage() {
           ) : (
             <div className="mt-12 grid overflow-hidden rounded-2xl bg-white shadow-lg shadow-primary-navy/5 lg:grid-cols-2">
               <div className="bg-primary-navy p-8 text-white sm:p-10">
-                <h3 className="text-3xl font-bold tracking-tight">Plans coming soon</h3>
+                <h3 className="text-3xl font-bold">Plans coming soon</h3>
                 <p className="mt-3 max-w-md leading-relaxed text-white/75">We&apos;re finalising our plans. Prices will be published here.</p>
                 <div className="mt-8">
                   <RegisterLink light />
@@ -303,7 +303,7 @@ export function LandingPage() {
       <footer className="bg-primary-navy text-white">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="flex flex-col items-start justify-between gap-8 border-b border-white/10 py-16 lg:flex-row lg:items-center lg:py-20">
-            <h2 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">Give your school office its time back.</h2>
+            <h2 className="max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">Give your school office its time back.</h2>
             <RegisterLink light />
           </div>
           <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">

@@ -92,7 +92,7 @@ export function RoleSwitcher() {
 
       <div key={role.label} role="tabpanel" className="mt-8 grid animate-fade-in-up items-center gap-8 lg:grid-cols-2 lg:gap-16">
         <div>
-          <h3 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{role.headline}</h3>
+          <h3 className="text-2xl font-bold leading-tight text-white sm:text-3xl">{role.headline}</h3>
           <ul className="mt-6 space-y-3">
             {role.points.map((point) => (
               <li key={point} className="flex gap-3 text-white/80">
