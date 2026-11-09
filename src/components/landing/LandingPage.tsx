@@ -9,7 +9,7 @@ import {
   FileCheck2,
   KeyRound,
   Mail,
-  MapPin,
+  Globe,
   MessageCircle,
   Phone,
   Play,
@@ -295,7 +295,7 @@ export function LandingPage() {
             <ContactCard icon={MessageCircle} label="WhatsApp" value={CONTACT.whatsapp ? "Chat with us" : ""} href={CONTACT.whatsapp} />
             <ContactCard icon={Phone} label="Phone" value={CONTACT.phone} href={`tel:${CONTACT.phone.replace(/\s/g, "")}`} />
             <ContactCard icon={Mail} label="Email" value={CONTACT.email} href={`mailto:${CONTACT.email}`} />
-            <ContactCard icon={MapPin} label="Office" value={CONTACT.address} />
+            <ContactCard icon={Globe} label="Location" value={CONTACT.address} />
           </div>
         </div>
       </section>

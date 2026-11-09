@@ -10,7 +10,7 @@ export const CONTACT = {
   whatsapp: "https://wa.me/2348124849188",
   phone: "+234 812 484 9188",
   email: "edugearsupport@gmail.com",
-  address: "",
+  address: "We're based online",
 };
 
 /** Paste each page's full link. Delete a line to remove that network from the footer. */
