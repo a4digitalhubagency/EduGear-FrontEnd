@@ -1,17 +1,17 @@
-import { GraduationCap } from "lucide-react";
+import Image from "next/image";
 import { cn } from "../lib/utils";
 
 interface EduGearLogoProps {
-  /** "mark" = solid navy badge (use on light backgrounds). "outline" = white outline badge (use on the dark navy panel). */
+  /** "mark" = full colour (use on light backgrounds). "outline" = all white (use on the dark navy panel). */
   variant?: "mark" | "outline";
-  /** Show the "EduGear" wordmark next to the badge. */
+  /** Show the "EduGear" wordmark next to the icon. */
   withWordmark?: boolean;
   className?: string;
 }
 
 /**
- * EduGear brand mark: a graduation-cap glyph in a rounded square badge.
- * Matches the icon used throughout the Stitch design system (sidebar, auth screens, dashboard header).
+ * EduGear brand logo: the cap-and-E icon, cut from public/brand/logo.png, with the wordmark as
+ * live text so it stays sharp at sidebar size. Already small files, so no image optimiser needed.
  */
 export function EduGearLogo({
   variant = "mark",
@@ -22,29 +22,20 @@ export function EduGearLogo({
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <div
-        className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-          isOutline
-            ? "border-2 border-white/70 bg-transparent"
-            : "bg-primary-navy",
-        )}
-      >
-        <GraduationCap
-          className={cn("h-6 w-6", isOutline ? "text-white" : "text-white")}
-          strokeWidth={2}
-        />
-      </div>
+      <Image
+        src={isOutline ? "/brand/mark-white.png" : "/brand/mark.png"}
+        alt={withWordmark ? "" : "EduGear"}
+        width={150}
+        height={176}
+        unoptimized
+        loading="eager"
+        className="h-11 w-auto shrink-0"
+      />
 
       {withWordmark && (
         <div className="leading-tight">
-          <p
-            className={cn(
-              "text-lg font-bold",
-              isOutline ? "text-white" : "text-primary-navy",
-            )}
-          >
-            EduGear
+          <p className={cn("text-lg font-bold", isOutline ? "text-white" : "text-primary-navy")}>
+            Edu<span className={isOutline ? undefined : "text-bright-blue"}>Gear</span>
           </p>
         </div>
       )}
