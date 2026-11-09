@@ -15,9 +15,8 @@ export const CONTACT = {
 
 /** Paste each page's full link. Delete a line to remove that network from the footer. */
 export const SOCIALS: { label: "Facebook" | "Instagram" | "LinkedIn" | "X"; href: string }[] = [
-  { label: "Facebook", href: "" },
   { label: "Instagram", href: "https://www.instagram.com/a4technologies_" },
-  { label: "LinkedIn", href: "" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/a4-technologies-7548273a7" },
   { label: "X", href: "https://x.com/a4digitalhub" },
 ];
 
