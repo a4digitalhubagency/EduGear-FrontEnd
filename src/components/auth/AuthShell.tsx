@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { EduGearLogo } from "../EduGearLogo";
 
 interface AuthShellProps {
@@ -26,7 +27,9 @@ export function AuthShell({
     <div className="flex min-h-screen w-full">
       {/* Left brand panel */}
       <div className="relative hidden w-1/2 flex-col justify-between bg-primary-navy px-12 py-12 text-white lg:flex">
-        <EduGearLogo variant="outline" />
+        <Link href="/" aria-label="EduGear home" className="w-fit">
+          <EduGearLogo variant="outline" />
+        </Link>
 
         <div className="max-w-md animate-fade-in-up">
           <h1 className="text-3xl font-bold leading-tight text-balance">

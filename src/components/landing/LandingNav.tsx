@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { EduGearLogo } from "@/components/EduGearLogo";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 const LINKS = [
   { label: "How it works", href: "#how-it-works" },
@@ -14,6 +15,13 @@ const LINKS = [
 
 export function LandingNav() {
   const [open, setOpen] = useState(false);
+  const signedIn = useAuthStore((s) => s.ready && !!s.accessToken);
+  const isParent = useAuthStore((s) => s.permissions.includes("portal.access"));
+  const account = !signedIn
+    ? { href: "/login", label: "Log in" }
+    : isParent
+      ? { href: "/portal", label: "Go to portal" }
+      : { href: "/dashboard", label: "Go to dashboard" };
 
   return (
     <header className="absolute inset-x-0 top-0 z-30">
@@ -29,12 +37,14 @@ export function LandingNav() {
           ))}
         </div>
         <div className="hidden items-center gap-2 lg:flex">
-          <Link href="/login" className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10">
-            Log in
+          <Link href={account.href} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10">
+            {account.label}
           </Link>
-          <Link href="/register" className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-primary-navy transition-colors hover:bg-cloud-sky">
-            Register your school
-          </Link>
+          {!signedIn && (
+            <Link href="/register" className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-primary-navy transition-colors hover:bg-cloud-sky">
+              Register your school
+            </Link>
+          )}
         </div>
         <button
           type="button"
@@ -59,13 +69,15 @@ export function LandingNav() {
               {link.label}
             </a>
           ))}
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-gray/10 pt-3">
-            <Link href="/login" className="rounded-lg border border-bright-blue px-3 py-2.5 text-center text-sm font-semibold text-bright-blue">
-              Log in
+          <div className="mt-2 flex gap-2 border-t border-slate-gray/10 pt-3">
+            <Link href={account.href} className="flex-1 rounded-lg border border-bright-blue px-3 py-2.5 text-center text-sm font-semibold text-bright-blue">
+              {account.label}
             </Link>
-            <Link href="/register" className="rounded-lg bg-primary-navy px-3 py-2.5 text-center text-sm font-semibold text-white">
-              Register
-            </Link>
+            {!signedIn && (
+              <Link href="/register" className="flex-1 rounded-lg bg-primary-navy px-3 py-2.5 text-center text-sm font-semibold text-white">
+                Register
+              </Link>
+            )}
           </div>
         </div>
       )}

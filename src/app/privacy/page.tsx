@@ -25,7 +25,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white px-6 py-12">
       <article className="mx-auto max-w-3xl">
-        <Link href="/login" aria-label="EduGear home">
+        <Link href="/" aria-label="EduGear home">
           <EduGearLogo />
         </Link>
         <h1 className="mt-10 text-3xl font-bold text-primary-navy">Privacy Policy</h1>

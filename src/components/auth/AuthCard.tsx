@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { EduGearLogo } from "../EduGearLogo";
 
@@ -19,7 +20,9 @@ export function AuthCard({ children, wide = false }: AuthCardProps) {
     <div className="flex min-h-screen w-full items-center justify-center bg-white px-6 py-12">
       <div className={wide ? "w-full max-w-xl animate-fade-in-up" : "w-full max-w-sm animate-fade-in-up"}>
         <div className="mb-8 flex justify-center">
-          <EduGearLogo />
+          <Link href="/" aria-label="EduGear home">
+            <EduGearLogo />
+          </Link>
         </div>
         {children}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -41,6 +41,13 @@ export function LoginForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const setSession = useAuthStore((s) => s.setSession);
+  const signedIn = useAuthStore((s) => s.ready && !!s.accessToken);
+  const isParent = useAuthStore((s) => s.permissions.includes("portal.access"));
+
+  // Already signed in (a restored session): nothing to do here.
+  useEffect(() => {
+    if (signedIn) router.replace(isParent ? "/portal" : "/dashboard");
+  }, [signedIn, isParent, router]);
 
   const {
     register,
@@ -77,7 +84,9 @@ export function LoginForm() {
 
   return (
     <div>
-      <EduGearLogo withWordmark className="mb-8 lg:hidden" />
+      <Link href="/" aria-label="EduGear home" className="mb-8 inline-block lg:hidden">
+        <EduGearLogo withWordmark />
+      </Link>
 
       <h2 className="text-2xl font-bold text-primary-navy">Welcome back</h2>
       <p className="mt-1 text-sm text-slate-gray">
