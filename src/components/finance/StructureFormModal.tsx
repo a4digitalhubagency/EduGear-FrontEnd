@@ -13,9 +13,13 @@ import { Textarea } from "@/components/ui/Textarea";
 import { TERM_LABELS } from "@/components/academics/setup/shared";
 import { errorMessage } from "@/lib/api-client";
 import { useClasses, useTerms } from "@/lib/queries/academics";
-import { useCreateFeeStructure, useFeeCategories, useUpdateFeeStructure } from "@/lib/queries/finance";
+import { useCreateFeeCategory, useCreateFeeStructure, useFeeCategories, useUpdateFeeStructure } from "@/lib/queries/finance";
+import { useCan } from "@/lib/store/auth-store";
 import { formatNaira, toDateInput } from "@/lib/utils";
 import { MAX_FEE_AMOUNT, MAX_STRUCTURE_ITEMS, type FeeStructure } from "@/types/finance";
+
+/** The "+ New category..." option's value: picking it swaps that row's dropdown for a name box. */
+const NEW_CATEGORY = "__new__";
 
 type ItemValues = { categoryId: string; amount: string; isOptional: boolean };
 type FormValues = {
@@ -50,7 +54,15 @@ export function StructureFormModal({ sessionId, sessionName, structure, onClose 
   const update = useUpdateFeeStructure();
   const [error, setError] = useState<string | null>(null);
 
-  const { register, control, handleSubmit, watch, formState } = useForm<FormValues>({
+  // Adding a category without leaving the form. Tracked by the row's field id, not its index,
+  // so removing another row doesn't move the name box. Same permission the Fee Categories button needs.
+  const canAddCategory = useCan("finance.create");
+  const createCategory = useCreateFeeCategory();
+  const [addingFor, setAddingFor] = useState<string | null>(null);
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  const { register, control, handleSubmit, watch, setValue, formState } = useForm<FormValues>({
     defaultValues: {
       name: structure?.name ?? "",
       termId: structure?.termId ?? "",
@@ -70,6 +82,26 @@ export function StructureFormModal({ sessionId, sessionName, structure, onClose 
   const activeCategories = (categories.data?.data ?? []).filter(
     (c) => c.isActive || structure?.items.some((i) => i.categoryId === c.id), // keep a retired one already in use
   );
+
+  function startAdding(fieldId: string) {
+    setAddingFor(fieldId);
+    setNewCategory("");
+    setCategoryError(null);
+  }
+
+  async function addCategory(index: number) {
+    const name = newCategory.trim();
+    if (!name) return setCategoryError("Type a name, e.g. Tuition.");
+    setCategoryError(null);
+    try {
+      // The mutation waits for the category list to refetch, so the new option exists before it's selected.
+      const created = await createCategory.mutateAsync({ name });
+      setValue(`items.${index}.categoryId`, created.id);
+      setAddingFor(null);
+    } catch (err) {
+      setCategoryError(errorMessage(err));
+    }
+  }
 
   async function onSubmit(values: FormValues) {
     setError(null);
@@ -155,41 +187,98 @@ export function StructureFormModal({ sessionId, sessionName, structure, onClose 
           )}
           {!categories.isPending && activeCategories.length === 0 && (
             <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-primary-navy">
-              Add fee categories first (e.g. Tuition, Books) with the &quot;Fee Categories&quot; button.
+              No fee categories yet.{" "}
+              {canAddCategory
+                ? "Pick “+ New category...” in the dropdown to add one (e.g. Tuition, Books)."
+                : "Ask someone who manages finance to add some (e.g. Tuition, Books)."}
             </p>
           )}
           <fieldset disabled={itemsLocked} className="space-y-2">
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-gray/10 p-2">
-                <Select className="min-w-44" aria-label="Category" {...register(`items.${index}.categoryId`)}>
-                  <option value="">Category...</option>
-                  {activeCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="Amount (₦)"
-                  aria-label="Amount"
-                  className="w-36 rounded-lg border border-slate-gray/25 px-3 py-2.5 text-sm text-primary-navy focus:border-bright-blue focus:outline-none focus:ring-2 focus:ring-bright-blue/20"
-                  {...register(`items.${index}.amount`)}
-                />
-                <Checkbox id={`items-${index}-optional`} label="Optional" {...register(`items.${index}.isOptional`)} />
-                {!itemsLocked && (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    aria-label="Remove item"
-                    className="ml-auto rounded-md p-1.5 text-slate-gray hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {fields.map((field, index) => {
+              const categoryField = register(`items.${index}.categoryId`);
+              return (
+                <div key={field.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-gray/10 p-2">
+                  {addingFor === field.id ? (
+                    <div className="flex min-w-44 items-center gap-1">
+                      <input
+                        autoFocus
+                        maxLength={80}
+                        placeholder="New category, e.g. Tuition"
+                        aria-label="New category name"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        onKeyDown={(e) => {
+                          // Enter would submit the whole structure; here it adds the category.
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCategory(index);
+                          } else if (e.key === "Escape") {
+                            e.stopPropagation();
+                            setAddingFor(null);
+                          }
+                        }}
+                        className="w-44 rounded-lg border border-slate-gray/25 px-3 py-2.5 text-sm text-primary-navy focus:border-bright-blue focus:outline-none focus:ring-2 focus:ring-bright-blue/20"
+                      />
+                      <Button type="button" className="w-auto px-3 py-2.5" isLoading={createCategory.isPending} onClick={() => addCategory(index)}>
+                        Add
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setAddingFor(null)}
+                        className="px-1.5 text-xs font-semibold text-slate-gray hover:text-primary-navy"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <Select
+                      className="min-w-44"
+                      aria-label="Category"
+                      {...categoryField}
+                      onChange={(e) => {
+                        if (e.target.value === NEW_CATEGORY) {
+                          setValue(`items.${index}.categoryId`, items[index]?.categoryId ?? ""); // Cancel returns to the old choice
+                          startAdding(field.id);
+                          return;
+                        }
+                        categoryField.onChange(e);
+                      }}
+                    >
+                      <option value="">Category...</option>
+                      {activeCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                      {canAddCategory && <option value={NEW_CATEGORY}>+ New category...</option>}
+                    </Select>
+                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Amount (₦)"
+                    aria-label="Amount"
+                    className="w-36 rounded-lg border border-slate-gray/25 px-3 py-2.5 text-sm text-primary-navy focus:border-bright-blue focus:outline-none focus:ring-2 focus:ring-bright-blue/20"
+                    {...register(`items.${index}.amount`)}
+                  />
+                  <Checkbox id={`items-${index}-optional`} label="Optional" {...register(`items.${index}.isOptional`)} />
+                  {!itemsLocked && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (addingFor === field.id) setAddingFor(null);
+                        remove(index);
+                      }}
+                      aria-label="Remove item"
+                      className="ml-auto rounded-md p-1.5 text-slate-gray hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {addingFor === field.id && categoryError && <p className="w-full text-xs font-medium text-red-600">{categoryError}</p>}
+                </div>
+              );
+            })}
           </fieldset>
           {!itemsLocked && fields.length < MAX_STRUCTURE_ITEMS && (
             <Button
@@ -204,8 +293,8 @@ export function StructureFormModal({ sessionId, sessionName, structure, onClose 
           )}
           <p className="mt-1 text-xs text-slate-gray">
             Optional items (e.g. a bus place) are only billed when ticked while issuing invoices. The total counts
-            compulsory items. Category not listed? Add it with the &quot;Fee Categories&quot; button beside New Fee
-            Structure.
+            compulsory items.
+            {canAddCategory && " Category not listed? Pick “+ New category...” in the dropdown."}
           </p>
         </div>
 
