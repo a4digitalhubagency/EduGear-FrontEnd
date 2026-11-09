@@ -8,7 +8,7 @@ export const DEMO_VIDEO_URL = "";
 
 export const CONTACT = {
   whatsapp: "", // full link, e.g. https://wa.me/2348012345678
-  phone: "", // e.g. +234 801 234 5678
+  phone: "+234 812 484 9188",
   email: "edugearsupport@gmail.com",
   address: "",
 };
@@ -16,9 +16,9 @@ export const CONTACT = {
 /** Paste each page's full link. Delete a line to remove that network from the footer. */
 export const SOCIALS: { label: "Facebook" | "Instagram" | "LinkedIn" | "X"; href: string }[] = [
   { label: "Facebook", href: "" },
-  { label: "Instagram", href: "" },
+  { label: "Instagram", href: "https://www.instagram.com/a4technologies_" },
   { label: "LinkedIn", href: "" },
-  { label: "X", href: "" },
+  { label: "X", href: "https://x.com/a4digitalhub" },
 ];
 
 export type Plan = {
