@@ -12,6 +12,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.edugear.ng"),
   title: "EduGear - School Management System",
   description:
     "EduGear is a premium multi-tenant school management SaaS platform for Nigeria's leading private institutions.",
