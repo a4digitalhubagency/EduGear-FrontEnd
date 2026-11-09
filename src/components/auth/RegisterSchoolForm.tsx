@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { FormError } from "../ui/FormError";
 import { Input, PasswordInput } from "../ui/Input";
 import { SelectField } from "../ui/Select";
+import { useHydrated } from "../../lib/hooks";
 import { ApiError, passwordErrorMessage } from "../../lib/api-client";
 import { NIGERIAN_STATES } from "../../lib/nigerian-states";
 import { useAuthStore } from "../../lib/store/auth-store";
@@ -25,6 +26,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
  * school, its system roles and the proprietor's login, and signs them straight in.
  */
 export function RegisterSchoolForm() {
+  const hydrated = useHydrated();
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export function RegisterSchoolForm() {
         Set up your school on EduGear. You&apos;ll be the proprietor and can invite your staff afterwards.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
+      <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
         <SectionTitle>School</SectionTitle>
         <Input label="School Name *" placeholder="Bright Star College" error={errors.schoolName?.message} {...register("schoolName")} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -115,7 +117,7 @@ export function RegisterSchoolForm() {
           .
         </p>
         <FormError message={error} />
-        <Button type="submit" isLoading={isSubmitting}>
+        <Button type="submit" disabled={!hydrated} isLoading={isSubmitting}>
           {isSubmitting ? "Creating your school..." : "Create School Account"}
           {!isSubmitting && <ArrowRight className="h-4 w-4" />}
         </Button>

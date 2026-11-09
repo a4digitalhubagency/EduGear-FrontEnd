@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Check, CheckCircle2, ShieldAlert, X } from "lucide-react";
 import { PasswordInput } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { useHydrated } from "../../lib/hooks";
 import { ApiError, api, jsonBody, passwordErrorMessage } from "../../lib/api-client";
 import { cn } from "../../lib/utils";
 import {
@@ -33,6 +34,7 @@ const REQUIREMENTS = PASSWORD_REQUIREMENTS;
  * errors, and the loading label on submit.
  */
 export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
+  const hydrated = useHydrated();
   const [stage, setStage] = useState<Stage>(token ? "form" : "expired");
   const [bannerError, setBannerError] = useState<string | null>(null);
 
@@ -154,7 +156,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
+      <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
         <PasswordInput
           label="New Password"
           autoComplete="new-password"
@@ -196,7 +198,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           </ul>
         </div>
 
-        <Button type="submit" isLoading={isSubmitting}>
+        <Button type="submit" disabled={!hydrated} isLoading={isSubmitting}>
           {isSubmitting ? "Updating credentials..." : "Reset Password"}
           {!isSubmitting && <ArrowRight className="h-4 w-4" />}
         </Button>

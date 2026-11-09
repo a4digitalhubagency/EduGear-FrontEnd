@@ -6,10 +6,12 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "../ui/Button";
 import { FormError } from "../ui/FormError";
 import { Input, PasswordInput } from "../ui/Input";
+import { useHydrated } from "../../lib/hooks";
 import { ApiError, errorMessage } from "../../lib/api-client";
 
 /** A4 operator sign-in (POST /platform/auth/login). A separate door from school logins on purpose. */
 export function PlatformLoginForm({ expired, changed }: { expired: boolean; changed: boolean }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,14 +52,14 @@ export function PlatformLoginForm({ expired, changed }: { expired: boolean; chan
       </div>
       <h2 className="mt-2 text-2xl font-bold text-primary-navy">Operator sign in</h2>
       <p className="mt-1 text-sm text-slate-gray">For EduGear staff at A4 Technologies only. Schools sign in at the main login page.</p>
-      <form onSubmit={submit} noValidate className="mt-8 space-y-5">
+      <form method="post" onSubmit={submit} noValidate className="mt-8 space-y-5">
         <Input label="Email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         <PasswordInput label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {changed && !error && !pending && (
           <p className="rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-700">Password changed. Sign in with your new password.</p>
         )}
         <FormError message={error} />
-        <Button type="submit" isLoading={pending}>
+        <Button type="submit" disabled={!hydrated} isLoading={pending}>
           Sign In
           {!pending && <ArrowRight className="h-4 w-4" />}
         </Button>

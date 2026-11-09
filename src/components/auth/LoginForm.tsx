@@ -10,6 +10,7 @@ import { EduGearLogo } from "../EduGearLogo";
 import { Input, PasswordInput } from "../ui/Input";
 import { Checkbox } from "../ui/Checkbox";
 import { Button } from "../ui/Button";
+import { useHydrated } from "../../lib/hooks";
 import { loginSchema, type LoginValues } from "../../lib/validation/auth";
 import { useAuthStore } from "../../lib/store/auth-store";
 
@@ -38,6 +39,7 @@ function loginErrorMessage(status: number, body: { errorCode?: string; message?:
  * Fields: School Email Address, Password, Remember this device for 30 days.
  */
 export function LoginForm() {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const setSession = useAuthStore((s) => s.setSession);
@@ -93,7 +95,7 @@ export function LoginForm() {
         Secure access to your school&apos;s operating system.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
+      <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
         <Input
           label="School Email Address"
           icon={Mail}
@@ -131,7 +133,7 @@ export function LoginForm() {
           </p>
         )}
 
-        <Button type="submit" isLoading={isSubmitting}>
+        <Button type="submit" disabled={!hydrated} isLoading={isSubmitting}>
           Sign In to Dashboard
           <ArrowRight className="h-4 w-4" />
         </Button>

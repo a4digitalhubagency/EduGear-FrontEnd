@@ -8,6 +8,7 @@ import { ArrowRight, Check, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Button } from "../ui/Button";
 import { FormError } from "../ui/FormError";
 import { PasswordInput } from "../ui/Input";
+import { useHydrated } from "../../lib/hooks";
 import { ApiError, api, jsonBody, passwordErrorMessage } from "../../lib/api-client";
 import { cn } from "../../lib/utils";
 import { PASSWORD_REQUIREMENTS, resetPasswordSchema, type ResetPasswordValues } from "../../lib/validation/auth";
@@ -21,6 +22,7 @@ type Stage = "form" | "invalid" | "success";
  * rules are the backend's (10+ characters, a letter and a number, not too common).
  */
 export function AcceptInvitationForm({ token }: { token: string | null }) {
+  const hydrated = useHydrated();
   const [stage, setStage] = useState<Stage>(token ? "form" : "invalid");
   const [error, setError] = useState<string | null>(null);
   const {
@@ -92,7 +94,7 @@ export function AcceptInvitationForm({ token }: { token: string | null }) {
       <h2 className="text-2xl font-bold text-primary-navy">Accept your invitation</h2>
       <p className="mt-1 text-sm leading-relaxed text-slate-gray">Choose a password to finish setting up your EduGear account.</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
+      <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
         <PasswordInput label="Password" autoComplete="new-password" placeholder="••••••••••" error={errors.password?.message} {...register("password")} />
         <PasswordInput
           label="Confirm Password"
@@ -113,7 +115,7 @@ export function AcceptInvitationForm({ token }: { token: string | null }) {
           })}
         </ul>
         <FormError message={error} />
-        <Button type="submit" isLoading={isSubmitting}>
+        <Button type="submit" disabled={!hydrated} isLoading={isSubmitting}>
           {isSubmitting ? "Setting up..." : "Set Password"}
           {!isSubmitting && <ArrowRight className="h-4 w-4" />}
         </Button>
