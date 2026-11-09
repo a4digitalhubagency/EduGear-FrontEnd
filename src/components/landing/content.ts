@@ -7,7 +7,7 @@
 export const DEMO_VIDEO_URL = "";
 
 export const CONTACT = {
-  whatsapp: "", // full link, e.g. https://wa.me/2348012345678
+  whatsapp: "https://wa.me/2348124849188",
   phone: "+234 812 484 9188",
   email: "edugearsupport@gmail.com",
   address: "",
