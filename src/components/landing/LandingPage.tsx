@@ -176,7 +176,7 @@ export function LandingPage() {
 
       <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
         <div className="reveal">
-          <SectionHeading kicker="One system" title="Six jobs your school does every term." />
+          <SectionHeading kicker="One system" title="All Jobs your school does every term." />
         </div>
         <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-slate-gray/10 bg-slate-gray/10 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((m) => (

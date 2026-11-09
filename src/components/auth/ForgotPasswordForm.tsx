@@ -77,7 +77,7 @@ export function ForgotPasswordForm() {
         </p>
         <div className="mt-3 flex items-center justify-center gap-4 text-xs">
           <a
-            href="mailto:support@edugear.ng"
+            href="mailto:edugearsupport@gmail.com"
             className="font-semibold text-bright-blue hover:underline"
           >
             Contact Support
@@ -148,7 +148,7 @@ export function ForgotPasswordForm() {
       <p className="mt-6 text-center text-sm text-slate-gray">
         Still having trouble? {" "}
         <a
-          href="mailto:support@edugear.ng"
+          href="mailto:edugearsupport@gmail.com"
           className="font-semibold text-bright-blue hover:underline"
         >
           Contact your school administrator

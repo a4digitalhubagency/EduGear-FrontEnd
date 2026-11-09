@@ -5,7 +5,7 @@ import { EduGearLogo } from "@/components/EduGearLogo";
 export const metadata: Metadata = { title: "EduGear - Privacy Policy" };
 
 const UPDATED = "28 October 2026";
-const CONTACT = "support@edugear.ng";
+const CONTACT = "edugearsupport@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/ui/table";
 import { api } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/store/auth-store";
 
-const SUPPORT_EMAIL = "support@edugear.ng"; // same address as the login page's Support link
+const SUPPORT_EMAIL = "edugearsupport@gmail.com"; // same address as the login page's Support link
 
 type HealthResponse = { status: "ok" | "error" | string };
 

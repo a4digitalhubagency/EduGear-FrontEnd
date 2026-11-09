@@ -25,7 +25,7 @@ function loginErrorMessage(status: number, body: { errorCode?: string; message?:
   if (status === 401) return "Invalid email or password.";
   // The backend can't say which: the school's EduGear account is suspended, or this person's access was removed.
   if (body?.errorCode === "MEMBERSHIP_INACTIVE") {
-    return "Your password is correct, but this account can't open a school right now: either your school's EduGear subscription is paused or your access was removed. Please contact your school administrator, or support@edugear.ng.";
+    return "Your password is correct, but this account can't open a school right now: either your school's EduGear subscription is paused or your access was removed. Please contact your school administrator, or edugearsupport@gmail.com.";
   }
   // 403s (pending invitation, inactive account, no active school) carry a user-facing message.
   if (status === 403 && body?.message) return body.message;
@@ -137,7 +137,7 @@ export function LoginForm() {
       </p>
 
       <div className="mt-8 flex items-center justify-center gap-4 border-t border-slate-gray/10 pt-6 text-xs text-slate-gray">
-        <a href="mailto:support@edugear.ng" className="hover:text-primary-navy">
+        <a href="mailto:edugearsupport@gmail.com" className="hover:text-primary-navy">
           Support
         </a>
         <span aria-hidden>&middot;</span>

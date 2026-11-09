@@ -121,7 +121,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         <p className="mt-6 text-xs text-slate-gray">
           Need help? {" "}
           <a
-            href="mailto:support@edugear.ng"
+            href="mailto:edugearsupport@gmail.com"
             className="font-semibold text-bright-blue hover:underline"
           >
             Contact school support
