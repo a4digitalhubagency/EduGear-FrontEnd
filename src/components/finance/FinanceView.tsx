@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Landmark } from "lucide-react";
 import { DebtorsPanel } from "@/components/finance/DebtorsPanel";
 import { InvoicesPanel } from "@/components/finance/InvoicesPanel";
 import { OverviewPanel } from "@/components/finance/OverviewPanel";
@@ -10,6 +12,7 @@ import { StructuresPanel } from "@/components/finance/StructuresPanel";
 import { Select } from "@/components/ui/Select";
 import { PageHeader, Tabs } from "@/components/ui/table";
 import { useSessions } from "@/lib/queries/academics";
+import { useSettlementAccount } from "@/lib/queries/school";
 import { useCan } from "@/lib/store/auth-store";
 
 const FINANCE_TABS = ["Overview", "Payments", "Invoices", "Debtors", "Fee Structures"] as const;
@@ -71,6 +74,7 @@ export function FinanceView() {
         </div>
       ) : (
         <>
+          <PayoutAccountNotice />
           <Tabs tabs={FINANCE_TABS} active={tab} onChange={setTab} />
           <div className="mt-6">
             {tab === "Overview" ? (
@@ -87,6 +91,32 @@ export function FinanceView() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Until the school adds the bank account fees are paid into, parents can't pay online, and
+ * nothing else on this screen would say why. Only shown to people who can fix it (school.update);
+ * nobody else can read the setting.
+ */
+function PayoutAccountNotice() {
+  const canUpdateSchool = useCan("school.update");
+  const account = useSettlementAccount(canUpdateSchool);
+  if (!canUpdateSchool || account.data?.configured !== false) return null;
+
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <p className="flex items-start gap-2 text-sm text-amber-900">
+        <Landmark className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          <span className="font-semibold">Parents can&apos;t pay online yet.</span> Add the bank account fees should be paid
+          into. The money goes straight to the school.
+        </span>
+      </p>
+      <Link href="/settings?tab=payments" className="text-sm font-semibold text-bright-blue hover:underline">
+        Add bank account
+      </Link>
     </div>
   );
 }

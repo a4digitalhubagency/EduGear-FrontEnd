@@ -88,3 +88,25 @@ export type StoredFile = {
   linkedId: string | null;
   createdAt: string;
 };
+
+// --- Fee settlement (backend src/finance/paystack/dto/settlement.dto.ts) -----
+
+/** GET /finance/settlement/banks row: a bank Paystack can pay a school out to. */
+export type Bank = { name: string; code: string; currency: string };
+
+/** PUT /finance/settlement/resolve and PUT /finance/settlement take the same body. */
+export type SettlementAccountInput = { bankCode: string; accountNumber: string };
+
+/** PUT /finance/settlement/resolve: the account holder as the bank has it. Saves nothing. */
+export type ResolvedAccount = { accountName: string; accountNumberMasked: string };
+
+/**
+ * GET /finance/settlement: where online fees are paid out to. Until `configured` is true the
+ * school can't take card payments. Only the last four digits are kept ("******6789").
+ */
+export type SettlementAccount = {
+  configured: boolean;
+  bankName: string | null;
+  accountName: string | null;
+  accountNumberMasked: string | null;
+};

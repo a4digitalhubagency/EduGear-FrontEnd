@@ -153,6 +153,17 @@ export function SubmitProofModal({ studentId, invoices, onClose }: { studentId: 
   );
 }
 
+/**
+ * The backend's refusal when the school hasn't added a payout account is written for staff
+ * ("Add your bank account in Settings"); a parent can't act on that, so tell them what they can do.
+ */
+function payOnlineError(err: unknown) {
+  const message = errorMessage(err);
+  return /settlement account/i.test(message)
+    ? "Your school isn't taking online payments yet. You can pay by bank transfer and upload your proof of payment instead."
+    : message;
+}
+
 /** Pay by card: the backend creates a pending payment and returns the provider's checkout page. */
 export function PayOnlineModal({ studentId, invoices, onClose }: { studentId: string; invoices: OpenInvoice[]; onClose: () => void }) {
   const start = useStartOnlinePayment();
@@ -172,7 +183,7 @@ export function PayOnlineModal({ studentId, invoices, onClose }: { studentId: st
       const started = await start.mutateAsync({ studentId, studentFeeId: invoice.id, amount: value });
       window.location.assign(started.authorizationUrl); // the provider's secure checkout
     } catch (err) {
-      setError(errorMessage(err));
+      setError(payOnlineError(err));
     }
   }
 

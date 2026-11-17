@@ -5,7 +5,8 @@ import { api, jsonBody, toQueryString } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { Paginated } from "@/types/api";
 import type {
-  CreateRoleInput, FilePurpose, PermissionInfo, Role, School, SchoolSettings, StorageQuota, StoredFile, UpdateSchoolInput, UpdateSchoolSettingsInput,
+  Bank, CreateRoleInput, FilePurpose, PermissionInfo, ResolvedAccount, Role, School, SchoolSettings, SettlementAccount, SettlementAccountInput,
+  StorageQuota, StoredFile, UpdateSchoolInput, UpdateSchoolSettingsInput,
 } from "@/types/school";
 
 export const schoolKeys = {
@@ -14,6 +15,8 @@ export const schoolKeys = {
   settings: () => [...schoolKeys.all, "settings"] as const,
   roles: () => [...schoolKeys.all, "roles"] as const,
   permissions: () => [...schoolKeys.all, "permissions"] as const,
+  settlement: () => [...schoolKeys.all, "settlement"] as const,
+  banks: () => [...schoolKeys.all, "banks"] as const,
 };
 
 export function useSchool() {
@@ -146,5 +149,38 @@ export function useDeleteFile() {
   return useMutation({
     mutationFn: (id: string) => api<void>(`/files/${id}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: schoolKeys.all }),
+  });
+}
+
+// --- Fee settlement (school.update) -----------------------------------------
+// Online fees are paid straight into the school's own bank account; EduGear never holds them.
+
+export function useSettlementAccount(enabled = true) {
+  return useQuery({ queryKey: schoolKeys.settlement(), queryFn: () => api<SettlementAccount>("/finance/settlement"), enabled });
+}
+
+/** The bank list barely changes, so it's fetched once per session. */
+export function useSettlementBanks(enabled = true) {
+  return useQuery({
+    queryKey: schoolKeys.banks(),
+    queryFn: () => api<Bank[]>("/finance/settlement/banks"),
+    enabled,
+    staleTime: Infinity,
+  });
+}
+
+/** Asks the bank who owns the account, so the name can be confirmed before saving. Changes nothing. */
+export function useResolveAccount() {
+  return useMutation({
+    mutationFn: (input: SettlementAccountInput) => api<ResolvedAccount>("/finance/settlement/resolve", jsonBody("PUT", input)),
+  });
+}
+
+/** Creates or repoints the school's payout account. The backend checks the account again before saving. */
+export function useSetSettlementAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SettlementAccountInput) => api<SettlementAccount>("/finance/settlement", jsonBody("PUT", input)),
+    onSuccess: (account) => queryClient.setQueryData(schoolKeys.settlement(), account),
   });
 }

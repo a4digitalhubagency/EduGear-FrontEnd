@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { PaymentSettings } from "@/components/settings/PaymentSettings";
 import { SchoolPreferencesForm } from "@/components/settings/SchoolPreferencesForm";
 import { SchoolProfileForm } from "@/components/settings/SchoolProfileForm";
 import { StorageSettings } from "@/components/settings/StorageSettings";
@@ -9,8 +11,16 @@ import { errorMessage } from "@/lib/api-client";
 import { useSchool, useSchoolSettings } from "@/lib/queries/school";
 import { useCan } from "@/lib/store/auth-store";
 
-const SETTINGS_TABS = ["School Profile", "Preferences", "Storage"] as const;
+const SETTINGS_TABS = ["School Profile", "Preferences", "Payments", "Storage"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+/** ?tab= values for deep links, e.g. /settings?tab=payments from the Finance screen's notice. */
+const TAB_PARAMS: Record<string, SettingsTab> = {
+  profile: "School Profile",
+  preferences: "Preferences",
+  payments: "Payments",
+  storage: "Storage",
+};
 
 function StateCard({ children }: { children: React.ReactNode }) {
   return (
@@ -28,7 +38,8 @@ function StateCard({ children }: { children: React.ReactNode }) {
 export function SettingsView() {
   const canRead = useCan("school.read");
   const canUpdate = useCan("school.update");
-  const [tab, setTab] = useState<SettingsTab>(SETTINGS_TABS[0]);
+  const params = useSearchParams();
+  const [tab, setTab] = useState<SettingsTab>(TAB_PARAMS[params.get("tab") ?? ""] ?? SETTINGS_TABS[0]);
   const school = useSchool();
   const settings = useSchoolSettings();
 
@@ -48,6 +59,8 @@ export function SettingsView() {
           <div className="mt-6">
             {tab === "Storage" ? (
               <StorageSettings canUpdate={canUpdate} />
+            ) : tab === "Payments" ? (
+              <PaymentSettings canUpdate={canUpdate} />
             ) : query.isPending ? (
               <StateCard>
                 <LoadingText label="Loading..." />
