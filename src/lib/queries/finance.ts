@@ -128,6 +128,17 @@ export function useRejectPayment() {
   );
 }
 
+/**
+ * Records that a verified payment was given back. The money moves at the bank, between the school
+ * and the parent; this puts the amount back on the invoice and tells the parent. refundedAt is a
+ * YYYY-MM-DD date when it wasn't today.
+ */
+export function useRefundPayment() {
+  return useFinanceMutation(({ id, reason, refundedAt }: { id: string; reason: string; refundedAt?: string }) =>
+    api<Payment>(`/finance/payments/${id}/refund`, jsonBody("POST", { reason, ...(refundedAt ? { refundedAt } : {}) })),
+  );
+}
+
 // --- Invoices ---------------------------------------------------------------
 
 export function useAssignInvoices() {

@@ -72,7 +72,7 @@ export type SubmitPaymentInput = {
 /** POST /portal/children/:studentId/payments/online: send the payer to authorizationUrl. */
 export type StartedOnlinePayment = { paymentId: string; reference: string; authorizationUrl: string; amount: number };
 
-export type NotificationType = "RESULT_PUBLISHED" | "PAYMENT_VERIFIED" | "PAYMENT_REJECTED" | "FEE_REMINDER" | "INVOICE_ISSUED";
+export type NotificationType = "RESULT_PUBLISHED" | "PAYMENT_VERIFIED" | "PAYMENT_REJECTED" | "PAYMENT_REFUNDED" | "FEE_REMINDER" | "INVOICE_ISSUED";
 
 export type PortalNotification = {
   id: string;

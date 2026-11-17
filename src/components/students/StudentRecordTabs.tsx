@@ -214,7 +214,11 @@ export function StudentFinanceTab({ studentId }: { studentId: string }) {
                 <td className="px-5 py-2.5 text-primary-navy">
                   {entry.description}
                   {entry.reference && (() => {
-                    const paymentId = entry.type === "PAYMENT" ? s.payments.find((p) => p.receiptNumber === entry.reference)?.id : undefined;
+                    // Refunded payments keep their number but no longer have a receipt to open.
+                    const paymentId =
+                      entry.type === "PAYMENT"
+                        ? s.payments.find((p) => p.receiptNumber === entry.reference && p.status === "VERIFIED")?.id
+                        : undefined;
                     return paymentId ? (
                       <button
                         type="button"

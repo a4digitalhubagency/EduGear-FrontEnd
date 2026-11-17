@@ -10,7 +10,8 @@ export const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "POS", "ONLINE", "CHEQU
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 /** Recorded money is PENDING until verified; only VERIFIED payments reduce a balance. */
-export const PAYMENT_STATUSES = ["PENDING", "VERIFIED", "REJECTED"] as const;
+/** REJECTED never counted; REFUNDED was verified and counted, then given back (it keeps its receipt number). */
+export const PAYMENT_STATUSES = ["PENDING", "VERIFIED", "REJECTED", "REFUNDED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const INVOICE_STATUSES = ["UNPAID", "PARTIAL", "PAID", "WAIVED", "CANCELLED"] as const;
@@ -311,7 +312,8 @@ export type StudentStatement = {
   /** Running-balance ledger, oldest first. */
   ledger: {
     date: string;
-    type: "INVOICE" | "DISCOUNT" | "WAIVER" | "PAYMENT";
+    // A refunded payment shows twice: its PAYMENT credit, then a REFUND debit dated when it was given back.
+    type: "INVOICE" | "DISCOUNT" | "WAIVER" | "PAYMENT" | "REFUND";
     description: string;
     debit: number;
     credit: number;

@@ -14,12 +14,14 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   PENDING: "Pending",
   VERIFIED: "Verified",
   REJECTED: "Rejected",
+  REFUNDED: "Refunded",
 };
 
 export const PAYMENT_STATUS_STYLES: Record<PaymentStatus, string> = {
   PENDING: "bg-amber-100 text-amber-700",
   VERIFIED: "bg-green-100 text-green-700",
   REJECTED: "bg-red-100 text-red-700",
+  REFUNDED: "bg-violet-100 text-violet-700",
 };
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Paperclip, Plus, Receipt as ReceiptIcon, Search, XCircle } from "lucide-react";
+import { CheckCircle2, Paperclip, Plus, Receipt as ReceiptIcon, Search, Undo2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { Input } from "@/components/ui/Input";
@@ -23,15 +23,17 @@ import { RecordPaymentModal } from "@/components/finance/RecordPaymentModal";
 import { errorMessage } from "@/lib/api-client";
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_STYLES } from "@/lib/finance-labels";
 import { useDebouncedValue } from "@/lib/hooks";
-import { usePayments, useRejectPayment, useVerifyPayment } from "@/lib/queries/finance";
+import { usePayments, useRefundPayment, useRejectPayment, useVerifyPayment } from "@/lib/queries/finance";
 import { useCan } from "@/lib/store/auth-store";
-import { cn, formatDate, formatNaira } from "@/lib/utils";
+import { cn, formatDate, formatNaira, todayInput } from "@/lib/utils";
 import { PAYMENT_METHODS, PAYMENT_STATUSES, type Payment, type PaymentMethod, type PaymentStatus } from "@/types/finance";
 
 const COLUMNS = 7;
 
 /**
- * Payments tab: everything recorded, with verify/reject for pending ones and receipts for verified.
+ * Payments tab: everything recorded, with verify/reject for pending ones, and receipts and refunds
+ * for verified ones. A refund happens at the bank; recording it here puts the amount back on the
+ * invoice and tells the parent.
  * autoRecord opens the Record Payment form straight away (the "Record Payment" shortcuts).
  */
 export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) {
@@ -55,6 +57,7 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
   });
   const verify = useVerifyPayment();
   const reject = useRejectPayment();
+  const refund = useRefundPayment();
 
   const [recording, setRecording] = useState(autoRecord && canRecord);
 
@@ -64,6 +67,7 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
     if (autoRecord) window.history.replaceState(null, "", "/finance?tab=payments");
   }
   const [rejecting, setRejecting] = useState<Payment | null>(null);
+  const [refunding, setRefunding] = useState<Payment | null>(null);
   const [receiptFor, setReceiptFor] = useState<string | null>(null);
   const [evidenceFor, setEvidenceFor] = useState<Payment | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -204,6 +208,9 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
                       {p.status === "VERIFIED" && (
                         <IconAction icon={ReceiptIcon} label="View receipt" onClick={() => setReceiptFor(p.id)} />
                       )}
+                      {p.status === "VERIFIED" && canVerify && (
+                        <IconAction icon={Undo2} label="Record a refund" tone="danger" onClick={() => setRefunding(p)} />
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -231,6 +238,28 @@ export function PaymentsPanel({ autoRecord = false }: { autoRecord?: boolean }) 
           tone="danger"
           onConfirm={({ reason }) => reject.mutateAsync({ id: rejecting.id, reason })}
           onClose={() => setRejecting(null)}
+        />
+      )}
+      {refunding && (
+        <ReasonModal
+          title="Record Refund"
+          description={
+            <>
+              Record that {formatNaira(refunding.amount)} ({refunding.receiptNumber}) was refunded to{" "}
+              <span className="font-semibold text-primary-navy">{refunding.studentName}</span>&apos;s parent? Make the
+              refund at the bank first: this only updates the records. The amount goes back on the invoice and the
+              parent is notified.
+            </>
+          }
+          dateLabel="Date Refunded *"
+          reasonHint="The parent sees this, so write it for them."
+          confirmLabel="Record Refund"
+          tone="danger"
+          onConfirm={({ reason, date }) =>
+            // Today is left to the backend, so the record carries the actual time.
+            refund.mutateAsync({ id: refunding.id, reason, refundedAt: date === todayInput() ? undefined : date })
+          }
+          onClose={() => setRefunding(null)}
         />
       )}
     </div>
