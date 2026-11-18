@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, GraduationCap, HardDrive, KeyRound, LogOut, Users } from "lucide-react";
+import { Building2, GraduationCap, HardDrive, LogOut, UserCog, Users } from "lucide-react";
 import { EduGearLogo } from "@/components/EduGearLogo";
+import { PlatformAccountModal } from "@/components/platform/PlatformAccountModal";
 import { PlatformAdminsPanel } from "@/components/platform/PlatformAdminsPanel";
-import { PlatformPasswordModal } from "@/components/platform/PlatformPasswordModal";
 import { PlatformSchoolsPanel } from "@/components/platform/PlatformSchoolsPanel";
 import { formatBytes } from "@/components/settings/StorageSettings";
 import { LoadingText, RetryButton, Tabs } from "@/components/ui/table";
@@ -71,8 +71,8 @@ export function PlatformConsole() {
   const queryClient = useQueryClient();
   const me = usePlatformMe();
 
-  // The session lasts 15 minutes and can't be refreshed: any platform query or action
-  // answering 401 means it ended, so go back to sign-in.
+  // platformApi already refreshes a lapsed access token and retries, so a 401 that reaches a
+  // query or action means the session itself is over (expired, revoked or replayed): sign in again.
   useEffect(() => {
     const expired = (error: unknown) => error instanceof ApiError && error.status === 401;
     const toLogin = () => router.replace("/platform/login?expired=1");
@@ -88,7 +88,7 @@ export function PlatformConsole() {
     };
   }, [queryClient, router]);
 
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   async function signOut(to = "/platform/login") {
     await fetch("/api/platform/session", { method: "DELETE" }).catch(() => null);
@@ -111,9 +111,9 @@ export function PlatformConsole() {
                 <span className="text-slate-gray">{me.data.role.charAt(0) + me.data.role.slice(1).toLowerCase()}</span>
               </span>
             )}
-            <button type="button" onClick={() => setChangingPassword(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
-              <KeyRound className="h-4 w-4" />
-              <span className="hidden sm:inline">Password</span>
+            <button type="button" onClick={() => setAccountOpen(true)} disabled={!me.data} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
+              <UserCog className="h-4 w-4" />
+              <span className="hidden sm:inline">Account</span>
             </button>
             <button type="button" onClick={() => signOut()} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-gray hover:bg-slate-100 hover:text-primary-navy">
               <LogOut className="h-4 w-4" />
@@ -124,7 +124,7 @@ export function PlatformConsole() {
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
         <h1 className="text-xl font-bold text-primary-navy">EduGear Platform</h1>
-        <p className="mt-1 text-sm text-slate-gray">Every school on EduGear. Sessions last 15 minutes, then you&apos;ll be asked to sign in again.</p>
+        <p className="mt-1 text-sm text-slate-gray">Every school on EduGear.</p>
         <div className="mt-2">
           {me.isPending ? (
             <p className="py-10 text-center text-sm text-slate-gray"><LoadingText label="Loading..." /></p>
@@ -135,9 +135,13 @@ export function PlatformConsole() {
           )}
         </div>
       </main>
-      {changingPassword && (
-        // The backend has already revoked this session, so drop its cookie and sign in with the new password.
-        <PlatformPasswordModal onClose={() => setChangingPassword(false)} onChanged={() => signOut("/platform/login?changed=1")} />
+      {accountOpen && me.data && (
+        <PlatformAccountModal
+          me={me.data}
+          onClose={() => setAccountOpen(false)}
+          // The backend has already revoked every platform session, this one included: drop it and sign in with the new password.
+          onPasswordChanged={() => signOut("/platform/login?changed=1")}
+        />
       )}
     </div>
   );

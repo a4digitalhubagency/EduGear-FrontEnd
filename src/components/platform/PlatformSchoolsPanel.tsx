@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +13,7 @@ import {
   LoadingText, PaginationFooter, Pill, RetryButton, TABLE_ROW,  TABLE_HEAD_ROW, TABLE_CARD,
 } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api-client";
+import { useDebouncedValue } from "@/lib/hooks";
 import { type SchoolsQuery, usePlatformSchools, useSchoolAction } from "@/lib/queries/platform";
 import { cn, formatDate, formatRelativeTime } from "@/lib/utils";
 import { SCHOOL_STATUSES, type PlatformSchool, type SchoolStatus } from "@/types/platform";
@@ -142,10 +144,12 @@ function SchoolDetail({ school, canChange, onAction }: { school: PlatformSchool;
   );
 }
 
-/** Every school: filter by status, sort, open one for its details and (operators/owners) actions. */
+/** Every school: search, filter by status, sort, open one for its details and (operators/owners) actions. */
 export function PlatformSchoolsPanel({ canChange }: { canChange: boolean }) {
   const [query, setQuery] = useState<SchoolsQuery>({ page: 1, sortBy: "createdAt", sortOrder: "desc" });
-  const schools = usePlatformSchools(query);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim()) || undefined;
+  const schools = usePlatformSchools({ ...query, search: debouncedSearch });
   const [openId, setOpenId] = useState<string | null>(null);
   const [action, setAction] = useState<Action | null>(null);
   // Read the open school from the list so it reflects changes after an action.
@@ -154,6 +158,12 @@ export function PlatformSchoolsPanel({ canChange }: { canChange: boolean }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:w-64">
+          <Input aria-label="Search schools" icon={Search} placeholder="Search schools" value={search} onChange={(e) => {
+              setSearch(e.target.value);
+              setQuery((q) => ({ ...q, page: 1 }));
+            }} />
+        </div>
         <Select
           aria-label="Status"
           value={query.status ?? ""}
@@ -210,7 +220,7 @@ export function PlatformSchoolsPanel({ canChange }: { canChange: boolean }) {
             ) : schools.data.data.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-10 text-center text-sm text-slate-gray">
-                  No schools{query.status ? ` with status ${statusLabel(query.status).toLowerCase()}` : ""}.
+                  No schools{debouncedSearch ? ` matching "${debouncedSearch}"` : ""}{query.status ? ` with status ${statusLabel(query.status).toLowerCase()}` : ""}.
                 </td>
               </tr>
             ) : (

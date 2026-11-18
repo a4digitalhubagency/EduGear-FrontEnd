@@ -67,17 +67,31 @@ export async function readJson(res: Response): Promise<any | null> { // eslint-d
   return res.json().catch(() => null);
 }
 
-// A4 platform console. Its access token lives in an httpOnly cookie scoped to the platform
-// proxy, so page JavaScript never holds it. Platform sessions can't be refreshed (the backend's
-// refresh needs a school), so the cookie lasts exactly as long as the token: then sign in again.
+// A4 platform console. Both tokens live in httpOnly cookies, so page JavaScript never holds
+// either. The 15-minute access token goes to the whole platform proxy; the refresh token is
+// scoped to /api/platform/session, so it only ever travels to refresh and sign-out.
 export const PLATFORM_COOKIE = "edugear_platform";
+export const PLATFORM_REFRESH_COOKIE = "edugear_platform_refresh";
+const PLATFORM_SESSION_PATH = "/api/platform/session";
 
-export function platformCookieOptions(maxAgeSeconds: number) {
+function platformCookieOptions(path: string, maxAgeSeconds?: number) {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict" as const,
-    path: "/api/platform",
-    maxAge: maxAgeSeconds,
+    path,
+    // No maxAge on the refresh cookie: it dies with the browser, though the backend would honour it for 30 days.
+    ...(maxAgeSeconds !== undefined ? { maxAge: maxAgeSeconds } : {}),
   };
+}
+
+/** Login and refresh both answer { admin, tokens }. The refresh token rotates, so always store the new one. */
+export function setPlatformSession(res: NextResponse, tokens: { accessToken: string; refreshToken: string; expiresIn: number }) {
+  res.cookies.set(PLATFORM_COOKIE, tokens.accessToken, platformCookieOptions("/api/platform", tokens.expiresIn));
+  res.cookies.set(PLATFORM_REFRESH_COOKIE, tokens.refreshToken, platformCookieOptions(PLATFORM_SESSION_PATH));
+}
+
+export function clearPlatformSession(res: NextResponse) {
+  res.cookies.delete({ name: PLATFORM_COOKIE, path: "/api/platform" });
+  res.cookies.delete({ name: PLATFORM_REFRESH_COOKIE, path: PLATFORM_SESSION_PATH });
 }

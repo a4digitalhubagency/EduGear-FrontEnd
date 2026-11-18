@@ -5,14 +5,39 @@ import { ApiError, toQueryString } from "@/lib/api-client";
 import type { Paginated } from "@/types/api";
 import type { PlatformAdmin, PlatformOperator, PlatformRole, PlatformSchool, PlatformStats, SchoolStatus } from "@/types/platform";
 
+let refreshInFlight: Promise<boolean> | null = null;
+
 /**
- * The platform console talks to /api/platform/* (its own proxy and cookie), never the school
- * API. A 401 means the 15-minute session ended.
+ * Swaps the refresh token for a new pair. It rotates on every use and the backend treats a
+ * replayed one as theft, ending the session, so two refreshes must never overlap. Within a tab
+ * concurrent callers share one request; across tabs a Web Lock queues them, and the cookie a
+ * queued tab sends is already the one the previous refresh stored.
  */
-export async function platformApi<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  let res: Response;
+export function refreshPlatformSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  const run = async () => {
+    try {
+      const res = await fetch("/api/platform/session/refresh", { method: "POST" });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+  // request() resolves with what the callback's promise resolves to; TS's lib types it one level too deep.
+  const locked =
+    typeof navigator !== "undefined" && navigator.locks
+      ? (navigator.locks.request("edugear-platform-refresh", run) as unknown as Promise<boolean>)
+      : run();
+  const flight = locked.finally(() => {
+    refreshInFlight = null;
+  });
+  refreshInFlight = flight;
+  return flight;
+}
+
+async function send(path: string, init: { method?: string; body?: unknown }) {
   try {
-    res = await fetch(`/api/platform${path}`, {
+    return await fetch(`/api/platform${path}`, {
       method: init.method ?? "GET",
       headers: init.body !== undefined ? { "Content-Type": "application/json" } : undefined,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -20,9 +45,22 @@ export async function platformApi<T>(path: string, init: { method?: string; body
   } catch {
     throw new ApiError(0, { message: "Can't reach the server. Please check your connection." });
   }
-  if (res.status === 204) return undefined as T;
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, data); // a 401 sends the console back to sign-in (PlatformConsole)
+}
+
+/**
+ * The platform console talks to /api/platform/* (its own proxy and cookies), never the school
+ * API. When the 15-minute access token has lapsed, it refreshes once and retries; a 401 that
+ * survives that means the session is over, and the console goes back to sign-in.
+ */
+export async function platformApi<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  let res = await send(path, init);
+  let data = res.status === 204 ? null : await res.json().catch(() => null);
+  // INVALID_CREDENTIALS is a wrong current password on the account forms, not a lapsed session.
+  if (res.status === 401 && data?.errorCode !== "INVALID_CREDENTIALS" && (await refreshPlatformSession())) {
+    res = await send(path, init);
+    data = res.status === 204 ? null : await res.json().catch(() => null);
+  }
+  if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
 }
 
@@ -42,7 +80,7 @@ export function usePlatformStats() {
   return useQuery({ queryKey: keys.stats(), queryFn: () => platformApi<PlatformStats>("/stats") });
 }
 
-export type SchoolsQuery = { page: number; status?: SchoolStatus; sortBy: "createdAt" | "name" | "status"; sortOrder: "asc" | "desc" };
+export type SchoolsQuery = { page: number; search?: string; status?: SchoolStatus; sortBy: "createdAt" | "name" | "status"; sortOrder: "asc" | "desc" };
 
 export function usePlatformSchools(query: SchoolsQuery) {
   return useQuery({
