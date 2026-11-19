@@ -103,7 +103,7 @@ function EmailForm({ me, onClose }: { me: PlatformOperator; onClose: () => void 
       <div className="space-y-4">
         <p className="rounded-lg bg-cloud-sky/40 px-3 py-3 text-sm text-primary-navy">
           We sent a confirmation link to <span className="font-semibold">{sentTo}</span>. Your email stays{" "}
-          <span className="font-semibold">{me.email}</span> until that link is opened.
+          <span className="font-semibold">{me.email}</span> until that link is opened. The link expires in 15 minutes.
         </p>
         <Button type="button" onClick={onClose}>
           Done
