@@ -56,7 +56,7 @@ export function PlatformConfirmEmailView({ token }: { token: string | null }) {
       <p className="mt-2 text-sm leading-relaxed text-slate-gray">
         {ok
           ? "Your platform account now signs in with this address. The old address has been told about the change."
-          : `${reason ?? "This confirmation link can't be used."} Your email hasn't changed. Request a new link from the Account screen in the console.`}
+          : `${(reason ?? "This confirmation link can't be used.").replace(/([^.!?])$/, "$1.")} Your email hasn't changed. Request a new link from the Account screen in the console.`}
       </p>
       <Link href="/platform" className="mt-8 block">
         <Button type="button">

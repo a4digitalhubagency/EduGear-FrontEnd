@@ -118,8 +118,10 @@ function EmailForm({ me, onClose }: { me: PlatformOperator; onClose: () => void 
         Currently <span className="font-semibold text-primary-navy">{me.email}</span>. The confirmation goes to the new address, so a typo
         changes nothing.
       </p>
-      <Input label="New Email" icon={Mail} type="email" autoComplete="email" error={errors.newEmail?.message} {...register("newEmail")} />
+      {/* Password first, and no "email" autocomplete hint: an email field followed by a password field reads as a
+          sign-in form, and Chrome fills the saved login into it, putting the current address in New Email. */}
       <PasswordInput label="Current Password" autoComplete="current-password" error={errors.currentPassword?.message} {...register("currentPassword")} />
+      <Input label="New Email" icon={Mail} type="email" autoComplete="off" error={errors.newEmail?.message} {...register("newEmail")} />
       <FormError message={serverError} />
       <CancelSubmit onClose={onClose} pending={isSubmitting} label="Send Confirmation" />
     </form>
